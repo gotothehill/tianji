@@ -23,6 +23,7 @@ export interface BaziChart {
     trueSolarTime: string; // HH:mm
     gender: string;
     sign: string; // Zodiac
+    qiYunInfo?: string; // Precise start of Da Yun
   };
   hidden: {
     taiYuan: string; // Life Conception

@@ -3,7 +3,7 @@ import { BaziChart } from '../types';
 import { X, Info, Star } from 'lucide-react';
 
 interface Props {
-  chart: BaziChart;
+    chart: BaziChart;
 }
 
 const SHEN_SHA_INFO: Record<string, { type: 'lucky' | 'unlucky' | 'peach' | 'power' | 'art', desc: string }> = {
@@ -24,7 +24,7 @@ const SHEN_SHA_INFO: Record<string, { type: 'lucky' | 'unlucky' | 'peach' | 'pow
         desc: '桃花主风流漂亮，异性缘佳，人际关系好。若桃花过重，则易招惹情感是非。'
     },
     '驿马': {
-        type: 'power', // Movement/Power
+        type: 'power',
         desc: '驿马主奔波远行，出国留学，或职业变动。吉则升迁，凶则劳碌奔波，背井离乡。'
     },
     '华盖': {
@@ -36,7 +36,7 @@ const SHEN_SHA_INFO: Record<string, { type: 'lucky' | 'unlucky' | 'peach' | 'pow
         desc: '将星入命，主有领导才能，具有慑众之威，利于武职或管理，掌权柄。'
     },
     '羊刃': {
-        type: 'unlucky', // Aggressive
+        type: 'unlucky',
         desc: '羊刃性情刚烈，急躁冲动。吉则刚毅果断，凶则易惹是非、刑伤或血光之灾。'
     },
     '劫煞': {
@@ -66,7 +66,7 @@ const SHEN_SHA_INFO: Record<string, { type: 'lucky' | 'unlucky' | 'peach' | 'pow
 };
 
 export const ShenShaTable: React.FC<Props> = ({ chart }) => {
-    const [selectedShenSha, setSelectedShenSha] = useState<string | null>(null);
+    // const [selectedShenSha, setSelectedShenSha] = useState<string | null>(null);
 
     const pillars = [
         { name: '年', data: chart.pillars.year },
@@ -110,7 +110,7 @@ export const ShenShaTable: React.FC<Props> = ({ chart }) => {
                 <Star className="text-orange-500 w-5 h-5" />
                 <h3 className="font-bold text-gray-800">神煞一览</h3>
             </div>
-            
+
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                     <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
@@ -132,18 +132,16 @@ export const ShenShaTable: React.FC<Props> = ({ chart }) => {
                             presentShenSha.map(name => (
                                 <tr key={name} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
-                                        <button 
-                                            onClick={() => setSelectedShenSha(name)}
-                                            className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold transition-transform hover:scale-105 ${getBadgeStyle(name)}`}
+                                        <div
+                                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${getBadgeStyle(name)}`}
                                         >
                                             {name}
-                                            <Info size={12} />
-                                        </button>
+                                        </div>
                                     </td>
                                     {pillars.map(p => (
                                         <td key={p.name} className="px-6 py-4 text-center">
                                             {p.data.shenSha.includes(name) ? (
-                                                <div 
+                                                <div
                                                     className={`w-3 h-3 rounded-full mx-auto ring-4 ${getIndicatorStyle(name)}`}
                                                     title={`${name}在${p.name}柱`}
                                                 ></div>
@@ -159,27 +157,27 @@ export const ShenShaTable: React.FC<Props> = ({ chart }) => {
                 </table>
             </div>
 
-            {/* Modal */}
-            {selectedShenSha && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedShenSha(null)}>
-                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                        <div className="bg-mystic-50 p-4 border-b border-mystic-100 flex justify-between items-center">
-                            <h4 className="font-bold text-lg text-mystic-900">{selectedShenSha}</h4>
-                            <button onClick={() => setSelectedShenSha(null)} className="text-gray-400 hover:text-gray-600">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="p-6">
-                            <p className="text-gray-600 leading-relaxed">
-                                {SHEN_SHA_INFO[selectedShenSha]?.desc || "暂无详细解释。"}
-                            </p>
-                            <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
-                                * 解释基于传统命理典籍，仅供参考。
+            {/* Detailed Explanations List - Replaces Modal */}
+            <div className="border-t border-gray-100 bg-gray-50/50 p-6">
+                <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                    <Info size={16} /> 神煞详解
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {presentShenSha.map(name => (
+                        <div key={name} className="flex gap-3 items-start p-3 bg-white rounded-lg border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                            <div className={`shrink-0 mt-0.5 font-bold text-xs px-2 py-1 rounded-md border text-center min-w-[70px] ${getBadgeStyle(name)}`}>
+                                {name}
+                            </div>
+                            <div className="text-xs text-slate-600 leading-relaxed">
+                                {SHEN_SHA_INFO[name]?.desc || "此神煞暂无详细数据库描述。"}
                             </div>
                         </div>
-                    </div>
+                    ))}
+                    {presentShenSha.length === 0 && (
+                        <div className="text-xs text-gray-400">无神煞可解释。</div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 };
