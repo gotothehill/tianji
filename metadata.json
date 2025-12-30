@@ -1,0 +1,7 @@
+{
+  "name": "TianJi Client v2.0",
+  "description": "A professional-grade Bazi (Four Pillars of Destiny) calculator with local storage privacy and AI-powered fate interpretation.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
