@@ -7,8 +7,9 @@ import { BaziChartDisplay } from './components/BaziChart';
 import { ElementalChart } from './components/ElementalChart';
 import { ZodiacAnalysis } from './components/ZodiacAnalysis';
 import { Timeline } from './components/Timeline';
-import { LifeBook } from './components/LifeBook'; // New Import
+import { LifeBook } from './components/LifeBook';
 import { ShenShaTable } from './components/ShenShaTable';
+import { Synastry } from './components/Synastry'; // Added
 import { Compass, User, Plus, Trash2, Calendar, MapPin, Menu, X, Search, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -153,6 +154,7 @@ const App: React.FC = () => {
         [TabType.CHART]: '命盘',
         [TabType.TIMELINE]: '运程',
         [TabType.LIFE_BOOK]: '命书',
+        [TabType.SYNASTRY]: '合盘',
         [TabType.SHEN_SHA]: '神煞',
         // [TabType.AI]: 'AI 解读',
     };
@@ -395,6 +397,9 @@ const App: React.FC = () => {
                             )}
                             {activeTab === TabType.LIFE_BOOK && (
                                 <LifeBook chart={baziChart} />
+                            )}
+                            {activeTab === TabType.SYNASTRY && (
+                                <Synastry currentProfile={activeProfile} />
                             )}
                             {activeTab === TabType.SHEN_SHA && (
                                 <ShenShaTable chart={baziChart} />

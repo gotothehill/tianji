@@ -22,8 +22,6 @@ const callOpenAI = async (messages: any[], temperature: number = 0.7): Promise<s
         throw new Error("Missing API Key. Please configure VITE_OPENAI_API_KEY in .env.local");
     }
 
-    // Ensure URL doesn't end with slash if we append /chat/completions, or handle user input flexibility
-    // Standardizing: User provides base url like https://api.openai.com/v1
     const endpoint = `${BASE_URL.replace(/\/$/, '')}/chat/completions`;
 
     try {
@@ -118,6 +116,42 @@ export const generateFullReport = async (
 
     return callOpenAI([
         { role: 'system', content: 'You are "Master TianJi" (天机先生), a profound scholar of Bazi.' },
+        { role: 'user', content: prompt }
+    ], 0.8);
+};
+
+export const generateSynastryReport = async (
+    chartA: BaziChart,
+    chartB: BaziChart,
+    relationType: string = 'couple' // 'couple' | 'partner'
+): Promise<string> => {
+    const prompt = `
+        # Role Definition
+        你是一名为“天机先生”的资深命理宗师，精通《三命通会》与《子平真诠》，擅长分析两人关系的“合婚/合伙”匹配度。
+        
+        # Task
+        请分析以下两个八字命盘的匹配程度（${relationType === 'couple' ? '男女婚恋' : '商业合伙'}），并输出《天机·双人合盘推演报告》。
+        
+        # Input Data
+        【甲方】：${JSON.stringify({ dayMaster: chartA.pillars.day.gan, dayBranch: chartA.pillars.day.zhi, wuxing: chartA.wuxing.details })}
+        【乙方】：${JSON.stringify({ dayMaster: chartB.pillars.day.gan, dayBranch: chartB.pillars.day.zhi, wuxing: chartB.wuxing.details })}
+        (注意：以日柱为核心，兼看年柱与整体五行气势)
+        
+        # Output Rules
+        1.  **章节结构**：
+            -   **第一章：缘分契合度** (天干五合、地支六合/三合分析，给出一个 0-100 的匹配分数)
+            -   **第二章：性格互补性** (分析双方日元强弱互补、五行喜用神是否互补)
+            -   **第三章：相处模式预判** (是“相爱相杀”还是“举案齐眉”？分析夫妻宫/日支的刑冲破害)
+            -   **第四章：未来关系趋势** (未来 3-5 年双方运势同步性简评)
+            -   **第五章：天机锦囊** (针对两人关系的具体的相处建议)
+        
+        2.  **风格要求**：
+            -   文风客观、理性，既指出契合点，也直言潜在冲突。
+            -   严禁绝对化（如“必离婚”），应使用概率性语言（如“易生口角”）。
+  `;
+
+    return callOpenAI([
+        { role: 'system', content: 'You are "Master TianJi", expert in Bazi Synastry.' },
         { role: 'user', content: prompt }
     ], 0.8);
 };

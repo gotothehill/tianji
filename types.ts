@@ -83,5 +83,6 @@ export enum TabType {
   TIMELINE = 'timeline',
   LIFE_BOOK = 'life_book',
   SHEN_SHA = 'shen_sha',
+  SYNASTRY = 'synastry', // Combined Chart
   AI = 'ai',
 }
