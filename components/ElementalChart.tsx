@@ -27,8 +27,12 @@ export const ElementalChart: React.FC<Props> = ({ wuxing }) => {
     );
   }
 
+  // --- Dynamic Scaling Logic ---
+  const maxScore = Math.max(...wuxing.scores.map(s => s.value), 10); // Minimum 10 to avoid div/0 or tiny scale
+  const totalScore = wuxing.scores.reduce((a, b) => a + b.value, 0) || 1;
+  const chartDomainMax = maxScore * 1.2; // Scale charts so max element is ~80% of radius/bar
+
   // Gauge Angle Calculation (-90 to 90 degrees)
-  // Percentage 0-100. 0 = -90deg, 100 = 90deg
   const gaugeAngle = (details.percentage / 100) * 180 - 90;
 
   const getStrengthColor = (p: number) => {
@@ -54,19 +58,14 @@ export const ElementalChart: React.FC<Props> = ({ wuxing }) => {
 
           {/* Gauge Visual */}
           <div className="relative w-48 h-24 mt-2 mb-6">
-            {/* Background Arc */}
             <div className="absolute w-full h-full rounded-tl-full rounded-tr-full bg-slate-100 border-t-[16px] border-l-[16px] border-r-[16px] border-slate-100 box-content -left-4 -top-4"></div>
-            {/* Colored Arcs roughly simulating regions */}
             <div className="absolute bottom-0 left-[10%] w-[80%] h-[180%] border-t-[16px] border-l-[16px] border-r-[16px] border-transparent border-t-emerald-200 rounded-full opacity-30"></div>
-
-            {/* Needle */}
             <div
               className="absolute bottom-0 left-1/2 w-1 h-[calc(100%-10px)] bg-slate-800 origin-bottom transition-transform duration-1000 ease-out z-10 rounded-full shadow-lg"
               style={{ transform: `translateX(-50%) rotate(${gaugeAngle}deg)` }}
             >
               <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-800 rounded-full border-2 border-white"></div>
             </div>
-            {/* Center Dot */}
             <div className="absolute bottom-0 left-1/2 w-4 h-2 -translate-x-1/2 bg-slate-800 rounded-t-full z-20"></div>
           </div>
 
@@ -91,7 +90,7 @@ export const ElementalChart: React.FC<Props> = ({ wuxing }) => {
               <RadarChart cx="50%" cy="50%" outerRadius="65%" data={wuxing.scores}>
                 <PolarGrid stroke="#e2e8f0" />
                 <PolarAngleAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
+                <PolarRadiusAxis angle={30} domain={[0, chartDomainMax]} tick={false} />
                 <Radar
                   name="能量"
                   dataKey="value"
@@ -138,7 +137,10 @@ export const ElementalChart: React.FC<Props> = ({ wuxing }) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-6">
           {wuxing.scores.map((score) => {
-            const percent = Math.min(100, (score.value / 400) * 100); // Rough normalize based on typical max ~400
+            // Visualize relative to the strongest element (so max bar is ~80-90% full)
+            const visualPercent = Math.min(100, (score.value / chartDomainMax) * 100);
+            const realRatio = Math.round((score.value / totalScore) * 100);
+
             return (
               <div key={score.name} className="flex flex-col gap-2">
                 <div className="flex justify-between items-end">
@@ -146,13 +148,16 @@ export const ElementalChart: React.FC<Props> = ({ wuxing }) => {
                     {ELEMENT_ICONS[score.name]}
                     {score.name}
                   </span>
-                  <span className="text-2xl font-serif font-black text-slate-800">{score.value}</span>
+                  <div className="text-right">
+                    <span className="text-2xl font-serif font-black text-slate-800 leading-none">{score.value}</span>
+                    <span className="text-[10px] text-slate-400 ml-1 font-medium">{realRatio}%</span>
+                  </div>
                 </div>
                 {/* Progress Bar */}
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-1000"
-                    style={{ width: `${percent}%`, backgroundColor: score.color }}
+                    style={{ width: `${visualPercent}%`, backgroundColor: score.color }}
                   ></div>
                 </div>
                 <div className="text-[10px] text-slate-400 text-right">
