@@ -33,6 +33,14 @@ export interface BaziChart {
   wuxing: {
     scores: { name: string; value: number; color: string }[];
     summary: string; // "Strong", "Weak", etc.
+    details?: {
+      dmWuxing: string; // '木'
+      strength: string; // '偏旺'
+      percentage: number; // 0-100
+      yongShen: string; // '食神...'
+      sameParty: number; // Energy score
+      otherParty: number; // Energy score
+    };
   };
   daYun: DaYunData[];
 }
@@ -73,7 +81,7 @@ export interface LiuNianData {
 export enum TabType {
   CHART = 'chart',
   TIMELINE = 'timeline',
-  ANALYSIS = 'analysis',
+  LIFE_BOOK = 'life_book',
   SHEN_SHA = 'shen_sha',
   AI = 'ai',
 }

@@ -66,7 +66,8 @@ const SHEN_SHA_INFO: Record<string, { type: 'lucky' | 'unlucky' | 'peach' | 'pow
 };
 
 export const ShenShaTable: React.FC<Props> = ({ chart }) => {
-    // const [selectedShenSha, setSelectedShenSha] = useState<string | null>(null);
+    // Tooltip State
+    const [hoveredInfo, setHoveredInfo] = useState<{ name: string, desc: string, x: number, y: number } | null>(null);
 
     const pillars = [
         { name: '年', data: chart.pillars.year },
@@ -105,13 +106,13 @@ export const ShenShaTable: React.FC<Props> = ({ chart }) => {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
             <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
                 <Star className="text-orange-500 w-5 h-5" />
                 <h3 className="font-bold text-gray-800">神煞一览</h3>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto min-h-[300px]">
                 <table className="w-full text-sm text-left">
                     <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
                         <tr>
@@ -133,7 +134,17 @@ export const ShenShaTable: React.FC<Props> = ({ chart }) => {
                                 <tr key={name} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div
-                                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${getBadgeStyle(name)}`}
+                                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold cursor-help transition-transform hover:scale-105 ${getBadgeStyle(name)}`}
+                                            onMouseEnter={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setHoveredInfo({
+                                                    name,
+                                                    desc: SHEN_SHA_INFO[name]?.desc || '暂无描述',
+                                                    x: rect.left,
+                                                    y: rect.bottom
+                                                });
+                                            }}
+                                            onMouseLeave={() => setHoveredInfo(null)}
                                         >
                                             {name}
                                         </div>
@@ -142,8 +153,17 @@ export const ShenShaTable: React.FC<Props> = ({ chart }) => {
                                         <td key={p.name} className="px-6 py-4 text-center">
                                             {p.data.shenSha.includes(name) ? (
                                                 <div
-                                                    className={`w-3 h-3 rounded-full mx-auto ring-4 ${getIndicatorStyle(name)}`}
-                                                    title={`${name}在${p.name}柱`}
+                                                    className={`w-3 h-3 rounded-full mx-auto ring-4 cursor-pointer hover:scale-125 transition-transform ${getIndicatorStyle(name)}`}
+                                                    onMouseEnter={(e) => {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setHoveredInfo({
+                                                            name,
+                                                            desc: `${name}出现于【${p.name}柱】。\n${SHEN_SHA_INFO[name]?.desc || ''}`,
+                                                            x: rect.left,
+                                                            y: rect.bottom
+                                                        });
+                                                    }}
+                                                    onMouseLeave={() => setHoveredInfo(null)}
                                                 ></div>
                                             ) : (
                                                 <span className="text-gray-200">-</span>
@@ -156,6 +176,24 @@ export const ShenShaTable: React.FC<Props> = ({ chart }) => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Hover Tooltip Portal/Overlay */}
+            {hoveredInfo && (
+                <div
+                    className="fixed z-[100] bg-slate-800 text-white text-xs p-3 rounded-lg shadow-xl max-w-[240px] pointer-events-none animate-in fade-in zoom-in-95 duration-200 border border-slate-700/50"
+                    style={{ top: hoveredInfo.y + 8, left: Math.min(hoveredInfo.x, window.innerWidth - 250) }}
+                >
+                    <div className="font-bold mb-1.5 pb-1.5 border-b border-slate-600/50 flex items-center justify-between">
+                        <span>{hoveredInfo.name}</span>
+                        <Info size={10} className="text-slate-400" />
+                    </div>
+                    <div className="leading-relaxed opacity-90 whitespace-pre-wrap">
+                        {hoveredInfo.desc}
+                    </div>
+                    {/* Arrow */}
+                    <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-800 rotate-45 border-t border-l border-slate-700/50"></div>
+                </div>
+            )}
 
             {/* Detailed Explanations List - Replaces Modal */}
             <div className="border-t border-gray-100 bg-gray-50/50 p-6">

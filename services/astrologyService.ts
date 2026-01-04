@@ -236,9 +236,9 @@ const calculateWuxingEnergy = (
   return scores;
 };
 
-const simpleWuxingAnalysis = (scores: Record<string, number>, dayMaster: string): string => {
+const simpleWuxingAnalysis = (scores: Record<string, number>, dayMaster: string) => {
   const dmWuxing = WUXING_MAP[dayMaster];
-  if (!dmWuxing) return '无法分析日元';
+  if (!dmWuxing) return { summary: '无法分析日元', details: undefined };
 
   const sameEnergy = scores[dmWuxing] || 0;
   const resourceWuxing = ELEMENTS[(ELEMENTS.indexOf(dmWuxing) - 1 + 5) % 5];
@@ -252,6 +252,7 @@ const simpleWuxingAnalysis = (scores: Record<string, number>, dayMaster: string)
   let yongShen = '';
 
   const ratio = supportEnergy / totalEnergy;
+  const percentage = Math.round(ratio * 100);
 
   if (ratio >= 0.55) {
     strengthText = '偏旺';
@@ -264,7 +265,17 @@ const simpleWuxingAnalysis = (scores: Record<string, number>, dayMaster: string)
     yongShen = '随运而定';
   }
 
-  return `日元 [${dayMaster}${dmWuxing}] 能量占比 ${(ratio * 100).toFixed(0)}%，判定为【${strengthText}】。\n建议喜用神：${yongShen}。`;
+  return {
+    summary: `日元 [${dayMaster}${dmWuxing}] 能量占比 ${percentage}%，判定为【${strengthText}】。\n建议喜用神：${yongShen}。`,
+    details: {
+      dmWuxing,
+      strength: strengthText,
+      percentage,
+      yongShen,
+      sameParty: Math.round(supportEnergy),
+      otherParty: Math.round(totalEnergy - supportEnergy)
+    }
+  };
 };
 
 // --- End Helpers ---
@@ -386,7 +397,7 @@ export const calculateBazi = (profile: UserProfile): BaziChart => {
       { name: '水', value: getSafeScore(calculatedScores['水']), color: '#60a5fa' },
     ];
 
-    const summary = simpleWuxingAnalysis(calculatedScores, dayGan);
+    const analysis = simpleWuxingAnalysis(calculatedScores, dayGan);
 
     let qiYunInfo = '计算中';
     try {
@@ -415,7 +426,8 @@ export const calculateBazi = (profile: UserProfile): BaziChart => {
       },
       wuxing: {
         scores: wuxingScores,
-        summary: summary
+        summary: analysis.summary,
+        details: analysis.details
       },
       daYun: daYunList
     };

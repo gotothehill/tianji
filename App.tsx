@@ -7,7 +7,7 @@ import { BaziChartDisplay } from './components/BaziChart';
 import { ElementalChart } from './components/ElementalChart';
 import { ZodiacAnalysis } from './components/ZodiacAnalysis';
 import { Timeline } from './components/Timeline';
-import { AIReport } from './components/AIReport';
+import { LifeBook } from './components/LifeBook'; // New Import
 import { ShenShaTable } from './components/ShenShaTable';
 import { Compass, User, Plus, Trash2, Calendar, MapPin, Menu, X, Search, Loader2 } from 'lucide-react';
 
@@ -152,9 +152,9 @@ const App: React.FC = () => {
     const TAB_NAMES: Record<string, string> = {
         [TabType.CHART]: '命盘',
         [TabType.TIMELINE]: '运程',
-        [TabType.ANALYSIS]: '分析',
+        [TabType.LIFE_BOOK]: '命书',
         [TabType.SHEN_SHA]: '神煞',
-        [TabType.AI]: 'AI 解读',
+        // [TabType.AI]: 'AI 解读',
     };
 
     return (
@@ -359,10 +359,10 @@ const App: React.FC = () => {
                                 </p>
                             </div>
                             <div className="flex gap-2 flex-wrap">
-                                {Object.values(TabType).map(tab => (
+                                {Object.keys(TAB_NAMES).map(tab => (
                                     <button
                                         key={tab}
-                                        onClick={() => setActiveTab(tab)}
+                                        onClick={() => setActiveTab(tab as TabType)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === tab ? 'bg-mystic-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}
                                     >
                                         {TAB_NAMES[tab]}
@@ -393,24 +393,11 @@ const App: React.FC = () => {
                             {activeTab === TabType.TIMELINE && (
                                 <Timeline daYunList={baziChart.daYun} />
                             )}
-                            {activeTab === TabType.ANALYSIS && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <ElementalChart wuxing={baziChart.wuxing} />
-                                    <div className="bg-white p-6 rounded-xl border border-gray-200">
-                                        <h3 className="font-bold mb-4">五行分析</h3>
-                                        <p className="text-gray-600 text-sm leading-relaxed">
-                                            {baziChart.wuxing.summary}
-                                            <br /><br />
-                                            分析依据月令（季节）以及比劫印星的扶抑情况来判定日元旺衰。
-                                        </p>
-                                    </div>
-                                </div>
+                            {activeTab === TabType.LIFE_BOOK && (
+                                <LifeBook chart={baziChart} />
                             )}
                             {activeTab === TabType.SHEN_SHA && (
                                 <ShenShaTable chart={baziChart} />
-                            )}
-                            {activeTab === TabType.AI && (
-                                <AIReport chart={baziChart} />
                             )}
                         </div>
                     </div>
