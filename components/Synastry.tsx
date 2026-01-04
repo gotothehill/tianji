@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { BaziChart, UserProfile } from '../types';
 import * as Astrology from '../services/astrologyService';
 import * as Storage from '../services/storageService';
@@ -31,6 +31,16 @@ export const Synastry: React.FC<Props> = ({ currentProfile }) => {
 
     const chartA = useMemo(() => profileA ? Astrology.calculateBazi(profileA) : null, [profileA]);
     const chartB = useMemo(() => profileB ? Astrology.calculateBazi(profileB) : null, [profileB]);
+
+    // Persistence Logic
+    useEffect(() => {
+        if (profileAId && profileBId) {
+            const cached = Storage.getSynastryReport(profileAId, profileBId);
+            setReport(cached);
+        } else {
+            setReport(null);
+        }
+    }, [profileAId, profileBId]);
 
     // Advanced Compatibility Logic
     const analysis = useMemo(() => {
@@ -122,13 +132,14 @@ export const Synastry: React.FC<Props> = ({ currentProfile }) => {
         };
     }, [chartA, chartB]);
 
-    const handleGenerateReport = async () => {
+    const handleGenerateReport = async (force: boolean = false) => {
         if (!chartA || !chartB) return;
         setLoading(true);
         setError(null);
         try {
             const result = await generateSynastryReport(chartA, chartB, 'couple');
             setReport(result);
+            Storage.saveSynastryReport(profileAId, profileBId, result);
         } catch (err: any) {
             setError(err.message || '生成报告失败');
         } finally {
@@ -321,7 +332,7 @@ export const Synastry: React.FC<Props> = ({ currentProfile }) => {
                             )}
 
                             <button
-                                onClick={handleGenerateReport}
+                                onClick={() => handleGenerateReport(false)}
                                 disabled={loading || !hasEnvKey}
                                 className="bg-gradient-to-r from-rose-500 to-purple-600 text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-rose-200 hover:shadow-rose-300 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
                             >
@@ -335,6 +346,22 @@ export const Synastry: React.FC<Props> = ({ currentProfile }) => {
                     {/* AI Report Display logic */}
                     {report && (
                         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 prose prose-slate max-w-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* Header with Regenerate */}
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Heart className="text-rose-500" size={20} /> AI 深度合盘报告
+                                </h3>
+                                {hasEnvKey && (
+                                    <button
+                                        onClick={() => handleGenerateReport(true)}
+                                        disabled={loading}
+                                        className="text-xs flex items-center gap-1 text-slate-400 hover:text-rose-600 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+                                    >
+                                        <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> 重新生成
+                                    </button>
+                                )}
+                            </div>
+
                             <div dangerouslySetInnerHTML={{
                                 __html: report
                                     .replace(/^# (.*)/gm, '<h1 class="text-2xl font-bold my-4 border-b border-gray-100 pb-2 text-rose-800">$1</h1>')

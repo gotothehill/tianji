@@ -6,6 +6,16 @@ export interface UserProfile {
   birthTime: string; // HH:mm
   longitude: number; // For True Solar Time
   notes: string;
+  reports?: {
+    lifeBook?: {
+      content: string;
+      timestamp: number;
+    };
+    synastry?: Record<string, { // Keyed by Partner ID
+      content: string;
+      timestamp: number;
+    }>;
+  };
 }
 
 export interface BaziChart {

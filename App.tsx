@@ -9,7 +9,7 @@ import { ZodiacAnalysis } from './components/ZodiacAnalysis';
 import { Timeline } from './components/Timeline';
 import { LifeBook } from './components/LifeBook';
 import { ShenShaTable } from './components/ShenShaTable';
-import { Synastry } from './components/Synastry'; // Added
+import { Synastry } from './components/Synastry';
 import { Compass, User, Plus, Trash2, Calendar, MapPin, Menu, X, Search, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -151,12 +151,11 @@ const App: React.FC = () => {
     };
 
     const TAB_NAMES: Record<string, string> = {
-        [TabType.CHART]: '命盘',
         [TabType.TIMELINE]: '运程',
+        [TabType.CHART]: '命盘',
         [TabType.LIFE_BOOK]: '命书',
         [TabType.SYNASTRY]: '合盘',
         [TabType.SHEN_SHA]: '神煞',
-        // [TabType.AI]: 'AI 解读',
     };
 
     return (
@@ -393,10 +392,10 @@ const App: React.FC = () => {
                                 </div>
                             )}
                             {activeTab === TabType.TIMELINE && (
-                                <Timeline daYunList={baziChart.daYun} />
+                                <Timeline chart={baziChart} />
                             )}
                             {activeTab === TabType.LIFE_BOOK && (
-                                <LifeBook chart={baziChart} />
+                                <LifeBook chart={baziChart} currentProfile={activeProfile} />
                             )}
                             {activeTab === TabType.SYNASTRY && (
                                 <Synastry currentProfile={activeProfile} />

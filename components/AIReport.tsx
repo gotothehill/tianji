@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BaziChart } from '../types';
 import { generateFullReport } from '../services/aiService';
-import { Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { getLifeBookReport, saveLifeBookReport } from '../services/storageService';
+import { Sparkles, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 
 interface Props {
   chart: BaziChart;
+  profileId: string; // Added for persistence
 }
 
-export const AIReport: React.FC<Props> = ({ chart }) => {
+export const AIReport: React.FC<Props> = ({ chart, profileId }) => {
   const [report, setReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,12 +17,19 @@ export const AIReport: React.FC<Props> = ({ chart }) => {
   // Check if env var is loaded (for UI feedback only)
   const hasEnvKey = !!import.meta.env.VITE_OPENAI_API_KEY;
 
-  const handleGenerate = async () => {
+  // Load cached report on mount or profile change
+  useEffect(() => {
+    const cached = getLifeBookReport(profileId);
+    setReport(cached);
+  }, [profileId]);
+
+  const handleGenerate = async (force: boolean = false) => {
     setLoading(true);
     setError(null);
     try {
       const result = await generateFullReport(chart);
       setReport(result);
+      saveLifeBookReport(profileId, result);
     } catch (err: any) {
       setError(err.message || "生成失败，请检查网络或配置");
     } finally {
@@ -35,15 +44,27 @@ export const AIReport: React.FC<Props> = ({ chart }) => {
           <Sparkles size={24} />
           <h2 className="text-xl font-bold">天机·AI 命理大师</h2>
         </div>
-        <div className="text-xs">
-          {hasEnvKey ? (
-            <span className="flex items-center gap-1 text-green-600 font-medium bg-green-50 px-2 py-1 rounded">
-              <CheckCircle2 size={12} /> AI 服务已连接
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded">
-              <AlertCircle size={12} /> 未检测到 API 配置
-            </span>
+        <div className="flex items-center gap-2">
+          <div className="text-xs">
+            {hasEnvKey ? (
+              <span className="flex items-center gap-1 text-green-600 font-medium bg-green-50 px-2 py-1 rounded">
+                <CheckCircle2 size={12} /> AI 服务已连接
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded">
+                <AlertCircle size={12} /> 未检测到 API 配置
+              </span>
+            )}
+          </div>
+          {/* Re-generate button if report exists */}
+          {report && hasEnvKey && (
+            <button
+              onClick={() => handleGenerate(true)}
+              disabled={loading}
+              className="text-xs flex items-center gap-1 text-slate-500 hover:text-mystic-600 px-2 py-1 rounded hover:bg-slate-50 transition-colors"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> 重新推演
+            </button>
           )}
         </div>
       </div>
@@ -73,7 +94,7 @@ export const AIReport: React.FC<Props> = ({ chart }) => {
           )}
 
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate(false)}
             disabled={loading || !hasEnvKey}
             className="bg-gradient-to-r from-mystic-600 to-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto hover:-translate-y-0.5"
           >

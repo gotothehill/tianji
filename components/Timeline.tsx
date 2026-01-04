@@ -1,6 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { DaYunData, LiuNianData } from '../types';
-import { ChevronRight, TrendingUp, AlertCircle, Info } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { BaziChart, DaYunData, LiuNianData } from '../types';
+import { ChevronRight, TrendingUp, AlertCircle, Info, Sun, Moon, CalendarDays, ArrowRight, Compass, Clock, AlertTriangle, FileText, Bug, Sparkles } from 'lucide-react';
+
+// --- CONSTANTS ---
+const TIMING_MAP = ['23-01', '01-03', '03-05', '05-07', '07-09', '09-11', '11-13', '13-15', '15-17', '17-19', '19-21', '21-23'];
+const SHI_CHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+const DIRECTION_MAP: Record<string, string> = {
+  '坎': '正北', '离': '正南', '震': '正东', '兑': '正西',
+  '巽': '东南', '坤': '西南', '艮': '东北', '乾': '西北',
+  '中': '中宫'
+};
 
 const TEN_GOD_INFO: Record<string, string> = {
   '比肩': '兄弟朋友助力，利合作盟友。但亦有竞争夺财之象，忌独断专行。',
@@ -15,240 +25,465 @@ const TEN_GOD_INFO: Record<string, string> = {
   '偏印': '思想独特，灵感丰富。利于冷门偏业或学术研究，但性格多孤僻，防孤独。'
 };
 
-const YEAR_ADVICE: Record<string, string> = {
-  '比肩': '本年利于合作交流，易得同辈助力。但需防财务纠纷与竞争压力，无论合伙还是交友，宜财务分明，切忌盲目义气。',
-  '劫财': '流年不利聚财，易有冲动性消费或因友破财。建议保守理财，避免高风险投资，通过主动“破欢喜财”（如置业、学习）来应象。',
-  '食神': '运势舒缓，心情愉悦，利于展现才华、享受美食与生活。是修身养性、学习新技能的好年份，忌安逸过度而不思进取。',
-  '伤官': '才思敏捷，求变心强，利于突破创新。但易恃才傲物惹是非，工作中切忌顶撞上司，宜低调做事，言多必失。',
-  '正财': '正财星照耀，收入稳定，多劳多得。适合稳扎稳打，积累财富。男命感情运佳，单身者有望脱单。',
-  '偏财': '财气流动大，有意外获利机会，也预示开销增加。投资宜见好就收，切勿贪婪。人际应酬增多，需注意作息。',
-  '正官': '事业运上升，利于升职加薪、公职考试或争取权威认证。女命夫运提升。举止宜端正，切忌挑战规则。',
-  '七杀': '压力与机遇并存，可能会面临严峻挑战或职位变动。需抗压前行，把压力转化为动力。特别注意身体健康与出行安全。',
-  '正印': '贵人运强，多得长辈或上司提携。利于考证、进修名气。生活安稳，是休养生息和提升自我的好时机。',
-  '偏印': '灵感涌现，利于研究玄学、艺术或冷门领域。心理上可能偏向孤独，容易胡思乱想，建议多参与社交活动，保持阳光心态。'
-};
-
 interface Props {
-  daYunList: DaYunData[];
+  chart: BaziChart | undefined | null;
 }
 
-export const Timeline: React.FC<Props> = ({ daYunList }) => {
-  // Initialize with Current Year logic
-  const currentYear = new Date().getFullYear();
+export const Timeline: React.FC<Props> = ({ chart }) => {
+  const [viewMode, setViewMode] = useState<'fortune' | 'dayun'>('fortune');
+  const [selectedDaYunIndex, setSelectedDaYunIndex] = useState(0);
+  const [selectedYear, setSelectedYear] = useState<LiuNianData | null>(null);
+  const [now, setNow] = useState(new Date());
 
-  // Find the Da Yun index that contains the current year
-  const initialDaYunIndex = daYunList.findIndex(dy =>
-    currentYear >= dy.startYear && currentYear <= (dy.startYear + 9)
-  );
+  // State for Lunar Data and Errors
+  const [lunarData, setLunarData] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Default to 0 if not found (e.g. year out of range)
-  const effectiveIndex = initialDaYunIndex >= 0 ? initialDaYunIndex : 0;
-
-  // Find the specific year node for default selection
-  const initialYearNode = initialDaYunIndex >= 0
-    ? daYunList[effectiveIndex].liuNian.find(yn => yn.year === currentYear) || null
-    : null;
-
-  const [selectedDaYunIndex, setSelectedDaYunIndex] = useState(effectiveIndex);
-  const [selectedYear, setSelectedYear] = useState<LiuNianData | null>(initialYearNode);
-  const selectedDaYun = daYunList[selectedDaYunIndex];
-
-  const handleDaYunClick = (idx: number) => {
-    if (idx !== selectedDaYunIndex) {
-      setSelectedDaYunIndex(idx);
-      setSelectedYear(null);
+  // Effect to select current DaYun
+  useEffect(() => {
+    if (chart?.daYun) {
+      const currentYear = new Date().getFullYear();
+      const idx = chart.daYun.findIndex(dy => currentYear >= dy.startYear && currentYear <= (dy.startYear + 9));
+      if (idx >= 0) {
+        setSelectedDaYunIndex(idx);
+        const yn = chart.daYun[idx].liuNian.find(y => y.year === currentYear);
+        if (yn) setSelectedYear(yn);
+      }
     }
-  };
+  }, [chart]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // --- Safe Dynamic Import Engine ---
+  useEffect(() => {
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        const module = await import('lunar-javascript');
+        // @ts-ignore
+        const Lunar = module.Lunar || module.default?.Lunar || module.default;
+
+        if (!Lunar || typeof Lunar.fromDate !== 'function') {
+          throw new Error(`Library loaded but Lunar entry not found.`);
+        }
+
+        const d = Lunar.fromDate(now);
+        if (!d) throw new Error("Lunar.fromDate(now) returned null");
+
+        // Use getDayYi / getDayJi as confirmed by verification
+        const yi = typeof d.getDayYi === 'function' ? d.getDayYi() : [];
+        const ji = typeof d.getDayJi === 'function' ? d.getDayJi() : [];
+
+        // Map directions if they return Trigrams
+        const mapDir = (val: string) => DIRECTION_MAP[val] || val;
+
+        // Calculate Hours Luck
+        // Iterate 0-11 shi chen. 
+        // We use a base time of today 00:00 (Zi start?) No, Zi starts 23 previous day.
+        // But usually for "Today's Hours", we list Zi (0:00-1:00 part + 23:00-24:00 part?)
+        // Or just the 12 branches implies the standard sequence.
+        const hoursList = [];
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0); // Start at midnight
+
+        for (let i = 0; i < 12; i++) {
+          // 0 -> Zi (Time 00:00)
+          // 1 -> Chou (Time 02:00)
+          const h = i * 2;
+          const tmpDate = new Date(startOfDay);
+          tmpDate.setHours(h);
+          const tmpLunar = Lunar.fromDate(tmpDate);
+
+          // Handle method existence safely
+          const god = tmpLunar.getTimeTianShen ? tmpLunar.getTimeTianShen() : '';
+          const luck = tmpLunar.getTimeTianShenLuck ? tmpLunar.getTimeTianShenLuck() : '';
+
+          hoursList.push({
+            zhi: SHI_CHEN[i],
+            time: TIMING_MAP[i],
+            god,
+            luck
+          });
+        }
+
+        const data = {
+          ganZhiYear: d.getYearInGanZhi(),
+          ganZhiMonth: d.getMonthInGanZhi(),
+          ganZhiDay: d.getDayInGanZhi(),
+          cnMonth: d.getMonthInChinese(),
+          cnDay: d.getDayInChinese(),
+          yi: yi,
+          ji: ji,
+          zhiXing: d.getZhiXing(),
+          naYin: d.getDayNaYin ? d.getDayNaYin() : '', // e.g. 城头土
+          jiShen: d.getDayJiShen ? d.getDayJiShen() : [],
+          xiongSha: d.getDayXiongSha ? d.getDayXiongSha() : [],
+          wealthPos: mapDir(d.getPositionCai ? d.getPositionCai() : (d.getDayPositionCai ? d.getDayPositionCai() : '查无')),
+          joyPos: mapDir(d.getPositionXi ? d.getPositionXi() : (d.getDayPositionXi ? d.getDayPositionXi() : '查无')),
+          noblePos: mapDir(d.getPositionYangGui ? d.getPositionYangGui() : (d.getDayPositionYangGui ? d.getDayPositionYangGui() : '查无')),
+          chong: d.getDayChongDesc ? d.getDayChongDesc() : '无',
+          sha: d.getDaySha ? d.getDaySha() : '无',
+          pengZuGan: d.getPengZuGan ? d.getPengZuGan() : '无',
+          pengZuZhi: d.getPengZuZhi ? d.getPengZuZhi() : '无',
+          hours: hoursList
+        };
+
+        if (mounted) {
+          setLunarData(data);
+          setErrorMsg(null);
+        }
+
+      } catch (e: any) {
+        console.error("Lunar Load Error:", e);
+        if (mounted) setErrorMsg(e.message || String(e));
+      }
+    };
+
+    loadData();
+
+    return () => { mounted = false; };
+  }, [now]);
+
+  if (!chart) return <div className="p-8 text-center text-slate-400">请先排盘以查看运势。</div>;
+
+  const selectedDaYun = chart?.daYun ? chart.daYun[selectedDaYunIndex] : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
 
-      {/* 1. Da Yun (Major Cycles) Strip */}
-      <div className="relative">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-2">
-          <TrendingUp size={14} />
-          大运 (10-Year Cycles)
-        </h3>
-
-        <div className="flex overflow-x-auto gap-3 pb-4 pt-1 px-1 scrollbar-hide snap-x mask-linear-fade">
-          {daYunList.map((yun, idx) => {
-            const isSelected = selectedDaYunIndex === idx;
-            return (
-              <button
-                key={idx}
-                onClick={() => handleDaYunClick(idx)}
-                className={`
-                        group relative flex flex-col items-center justify-between
-                        min-w-[70px] h-[100px] p-2 rounded-2xl border transition-all duration-300 snap-center
-                        ${isSelected
-                    ? 'bg-violet-600 border-violet-600 shadow-lg shadow-violet-200 -translate-y-1'
-                    : 'bg-white border-slate-100 hover:border-violet-200 hover:bg-slate-50'}
-                    `}
-              >
-                {/* Top: Age */}
-                <span className={`text-[10px] font-medium ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}>
-                  {yun.startAge}岁
-                </span>
-
-                {/* Center: Pillar & God */}
-                <div className={`flex flex-col items-center my-1 ${isSelected ? 'text-white' : 'text-slate-700'}`}>
-                  <span className={`text-[9px] mb-0.5 ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}>{yun.ganGod}</span>
-                  <div className="text-xl font-serif font-black leading-none flex flex-col items-center">
-                    <span>{yun.gan}</span>
-                    <span className="mt-0.5">{yun.zhi}</span>
-                  </div>
-                </div>
-
-                {/* Bottom: Year */}
-                <span className={`text-[10px] ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}>
-                  {yun.startYear}
-                </span>
-
-                {/* Active Indicator Dot */}
-                {isSelected && (
-                  <div className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-violet-600" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+      {/* Navigation */}
+      <div className="flex p-1 bg-slate-100 rounded-xl w-full sm:w-fit mx-auto sm:mx-0 sticky top-0 z-10 shadow-sm">
+        <button
+          onClick={() => setViewMode('fortune')}
+          className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${viewMode === 'fortune' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <Sun size={16} /> 今日必读
+        </button>
+        <button
+          onClick={() => setViewMode('dayun')}
+          className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${viewMode === 'dayun' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <TrendingUp size={16} /> 一生大运
+        </button>
       </div>
 
-      {/* 2. Selected Detail View */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300" key={selectedDaYunIndex}>
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-          <div>
-            <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-              <span className="font-serif bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-base">
-                {selectedDaYun.gan}{selectedDaYun.zhi}
-              </span>
-              <span>大运详情</span>
-            </h4>
-            <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-              <span>覆盖年龄: {selectedDaYun.startAge} - {selectedDaYun.startAge + 9} 岁</span>
-              <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+      {/* --- View 1: Fortune Dashboard --- */}
+      {viewMode === 'fortune' && (
+        <div className="space-y-6">
 
-              {/* Tooltip Wrapper */}
-              <div className="group relative inline-flex items-center cursor-help">
-                <span className="text-violet-600 font-medium border-b border-dashed border-violet-300 pb-0.5">
-                  {selectedDaYun.ganGod}运
-                </span>
-
-                {/* 
-                   Positioned BELOW (top-full mt-2) to avoid clipping.
-                */}
-                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-48 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-left pointer-events-none">
-                  <div className="font-bold mb-1 text-violet-300">{selectedDaYun.ganGod}大运</div>
-                  <div className="leading-relaxed opacity-90">
-                    {TEN_GOD_INFO[selectedDaYun.ganGod] || "运势流转，吉凶参半。"}
+          {!lunarData ? (
+            <div className="p-8 bg-amber-50 text-amber-900 rounded-xl border border-amber-100 text-center">
+              {errorMsg ? (
+                <>
+                  <AlertCircle className="mx-auto mb-2 text-rose-500" />
+                  <p className="font-bold text-rose-600">万年历加载失败</p>
+                  <div className="mt-2 text-xs font-mono bg-white p-2 text-left rounded border border-rose-100 overflow-auto max-h-32 text-rose-800 break-all">
+                    DEBUG: {errorMsg}
                   </div>
-                  {/* Arrow Pointing Up */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800"></div>
+                </>
+              ) : (
+                <>
+                  <ArrowRight className="mx-auto mb-2 animate-spin text-amber-500" />
+                  <p>正在计算星历数据...</p>
+                </>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* 1. Hero Card */}
+              <div className="bg-gradient-to-br from-violet-600 to-indigo-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full blur-3xl -mr-10 -mt-10"></div>
+
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm">
+                          {lunarData.ganZhiYear}年
+                        </span>
+                        <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm">
+                          {lunarData.ganZhiMonth}月
+                        </span>
+                        {lunarData.zhiXing && (
+                          <span className="bg-amber-400/80 text-amber-900 px-2 py-0.5 rounded text-[10px] font-bold">
+                            {lunarData.zhiXing}日
+                          </span>
+                        )}
+                        {lunarData.naYin && (
+                          <span className="bg-emerald-400/80 text-emerald-900 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                            {lunarData.naYin}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-4xl font-serif font-bold mb-1">
+                        {lunarData.cnMonth}月{lunarData.cnDay}
+                      </div>
+                      <div className="text-violet-200 text-xs opacity-80">
+                        {now.toLocaleDateString()} {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][now.getDay()]}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-4xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-violet-200">
+                        {lunarData.ganZhiDay}
+                      </div>
+                      <div className="text-[10px] text-violet-300 uppercase tracking-widest mt-1">当日干支</div>
+                    </div>
+                  </div>
+
+                  {/* Yi/Ji Split */}
+                  <div className="grid grid-cols-2 gap-4 bg-white/5 rounded-xl p-1 backdrop-blur-sm border border-white/10">
+                    <div className="p-3 text-center border-r border-white/10">
+                      <div className="text-emerald-300 font-bold text-xs mb-1 flex items-center justify-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div> 宜 (Do)
+                      </div>
+                      <p className="text-xs text-white/90 leading-relaxed line-clamp-2">
+                        {lunarData.yi.join(' ')}
+                      </p>
+                    </div>
+                    <div className="p-3 text-center">
+                      <div className="text-rose-300 font-bold text-xs mb-1 flex items-center justify-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-400"></div> 忌 (Don't)
+                      </div>
+                      <p className="text-xs text-white/90 leading-relaxed line-clamp-2">
+                        {lunarData.ji.join(' ')}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* 2. Compass & Directions Grid */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                <h3 className="font-bold text-slate-700 text-sm mb-4 flex items-center gap-2">
+                  <Compass className="text-blue-500" size={16} /> 吉神方位 (Lucky Directions)
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
+                    <div className="text-[10px] text-slate-400 mb-1">财神 (Wealth)</div>
+                    <div className="font-bold text-slate-700">{lunarData.wealthPos}</div>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
+                    <div className="text-[10px] text-slate-400 mb-1">喜神 (Joy)</div>
+                    <div className="font-bold text-slate-700">{lunarData.joyPos}</div>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
+                    <div className="text-[10px] text-slate-400 mb-1">贵人 (Noble)</div>
+                    <div className="font-bold text-slate-700">{lunarData.noblePos}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Time Luck Strip */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                <h3 className="font-bold text-slate-700 text-sm mb-4 flex items-center gap-2">
+                  <Clock className="text-amber-500" size={16} /> 十二时辰吉凶
+                </h3>
+                <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide snap-x">
+                  {lunarData.hours.map((h: any, idx: number) => {
+                    const isLucky = h.luck === '吉';
+                    return (
+                      <div key={h.zhi} className={`snap-center flex-shrink-0 w-20 bg-slate-50 rounded-lg p-2 text-center border ${isLucky ? 'border-emerald-100 bg-emerald-50/50' : 'border-slate-100'} flex flex-col items-center group relative`}>
+                        <div className="text-xs font-bold text-slate-700 mb-1">{h.zhi}时</div>
+                        <div className="text-[10px] text-slate-400 mb-1 scale-90">{h.time}</div>
+                        <div className={`w-full py-0.5 text-[10px] rounded font-bold ${isLucky ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                          {h.god} {h.luck}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 4. Gods & Evils (New) */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-bold text-emerald-600 text-xs mb-2 flex items-center gap-1">
+                      <Sun size={12} /> 吉神 (Lucky Gods)
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {lunarData.jiShen && lunarData.jiShen.length > 0 ? (
+                        lunarData.jiShen.slice(0, 8).map((g: string) => (
+                          <span key={g} className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-100">
+                            {g}
+                          </span>
+                        ))
+                      ) : <span className="text-[10px] text-slate-400">无</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-rose-600 text-xs mb-2 flex items-center gap-1">
+                      <Moon size={12} /> 凶神 (Fierce Gods)
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {lunarData.xiongSha && lunarData.xiongSha.length > 0 ? (
+                        lunarData.xiongSha.slice(0, 8).map((g: string) => (
+                          <span key={g} className="text-[10px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-100">
+                            {g}
+                          </span>
+                        ))
+                      ) : <span className="text-[10px] text-slate-400">无</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Taboos & Conflicts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Clash Info */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                  <h3 className="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                    <AlertTriangle className="text-rose-500" size={16} /> 今日冲煞
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">日破 (Clash)</span>
+                      <span className="font-medium text-slate-800">{lunarData.chong}</span>
+                    </div>
+                    <div className="w-full h-px bg-slate-50"></div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">煞方 (Bad Dir)</span>
+                      <span className="font-medium text-slate-800">{lunarData.sha}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Peng Zu */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                  <h3 className="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                    <FileText className="text-indigo-500" size={16} /> 彭祖百忌
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                      <strong className="text-indigo-600 mr-1">{lunarData.ganZhiDay[0]}:</strong>
+                      {lunarData.pengZuGan}
+                    </div>
+                    <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                      <strong className="text-indigo-600 mr-1">{lunarData.ganZhiDay[1]}:</strong>
+                      {lunarData.pengZuZhi}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* AI Upsell */}
+          <div className="bg-gradient-to-r from-violet-100 to-fuchsia-100 border border-violet-200 rounded-2xl p-4 flex justify-between items-center cursor-pointer hover:shadow-md transition-all group">
+            <div>
+              <h4 className="font-bold text-violet-900 text-sm mb-0.5">想知道今日财运具体方位？</h4>
+              <p className="text-xs text-violet-700">结合您八字的精准 AI 每日指南</p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-white text-violet-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+              <ArrowRight size={16} />
             </div>
           </div>
-          <div className="text-xs text-slate-400 font-mono bg-white px-2 py-1 rounded border border-slate-100">
-            {selectedDaYun.startYear} - {selectedDaYun.startYear + 9}
-          </div>
+
         </div>
+      )}
 
-        {/* Liu Nian (Annual) Grid */}
-        <div className="p-4 bg-slate-50/30">
-          <h5 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
-            流年运势 (Annual Fortunes)
-          </h5>
-          <div className="grid grid-cols-2 min-[450px]:grid-cols-3 sm:grid-cols-5 gap-3">
-            {selectedDaYun.liuNian.map((year, idx) => {
-              const isActive = selectedYear?.year === year.year;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedYear(year)}
-                  className={`
-                        relative rounded-xl p-3 border transition-all duration-200 group cursor-pointer text-left
-                        ${isActive
-                      ? 'bg-white border-violet-500 ring-2 ring-violet-200 shadow-md transform -translate-y-0.5'
-                      : 'bg-white border-slate-100 hover:border-violet-300 hover:shadow-sm'}
-                    `}
-                >
-                  {/* Header: Year & Age */}
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-mono text-slate-400">{year.year}</span>
-                    <span className={`text-[10px] font-medium px-1.5 rounded-full ${isActive ? 'bg-violet-100 text-violet-600' : 'bg-slate-100 text-slate-500'}`}>
-                      {year.age}岁
+      {/* --- View 2: Da Yun (Existing) --- */}
+      {viewMode === 'dayun' && (
+        <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+          <div className="relative">
+            <div className="flex overflow-x-auto gap-3 pb-4 pt-1 px-1 scrollbar-hide snap-x mask-linear-fade">
+              {chart?.daYun.map((yun, idx) => {
+                const isSelected = selectedDaYunIndex === idx;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => { setSelectedDaYunIndex(idx); setSelectedYear(null); }}
+                    className={`
+                                  group relative flex flex-col items-center justify-between
+                                  min-w-[70px] h-[100px] p-2 rounded-2xl border transition-all duration-300 snap-center
+                                  ${isSelected
+                        ? 'bg-violet-600 border-violet-600 shadow-lg shadow-violet-200 -translate-y-1'
+                        : 'bg-white border-slate-100 hover:border-violet-200 hover:bg-slate-50'}
+                              `}
+                  >
+                    <span className={`text-[10px] font-medium ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}>
+                      {yun.startAge}岁
                     </span>
-                  </div>
 
-                  {/* Content: Pillar with God */}
-                  <div className="text-center mb-2 flex flex-col items-center">
-                    <span className={`text-[10px] mb-0.5 font-bold scale-90 ${isActive ? 'text-violet-600' : 'text-slate-400'}`}>
-                      {year.ganGod}
-                    </span>
-                    <span className={`text-lg font-serif font-black leading-none ${isActive ? 'text-violet-900' : 'text-slate-800'}`}>
-                      {year.gan}{year.zhi}
-                    </span>
-                  </div>
+                    <div className={`flex flex-col items-center my-1 ${isSelected ? 'text-white' : 'text-slate-700'}`}>
+                      <span className={`text-[9px] mb-0.5 ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}>{yun.ganGod}</span>
+                      <div className="text-xl font-serif font-black leading-none flex flex-col items-center">
+                        <span>{yun.gan}</span>
+                        <span className="mt-0.5">{yun.zhi}</span>
+                      </div>
+                    </div>
 
-                  {/* Footer: Status / Risk */}
-                  <div className="flex justify-center items-center h-4">
-                    {['冲', '克'].some(k => k === '冲') ? (
-                      <span className="flex items-center gap-1 text-[9px] text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-full">
-                        <AlertCircle size={8} />
-                      </span>
-                    ) : (
-                      <span className="w-1 h-1 rounded-full bg-slate-200"></span>
+                    <span className={`text-[10px] ${isSelected ? 'text-violet-200' : 'text-slate-400'}`}>
+                      {yun.startYear}
+                    </span>
+
+                    {isSelected && (
+                      <div className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-violet-600" />
                     )}
-                  </div>
-                </button>
-              )
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* 3. Annual Advice Expanded View */}
-          {selectedYear && (
-            <div className="mt-4 p-4 rounded-xl bg-white border border-violet-100 shadow-sm animate-in fade-in slide-in-from-top-2 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-violet-500"></div>
-
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl font-serif font-black text-slate-800">{selectedYear.gan}{selectedYear.zhi}</span>
-                <span className="text-sm text-slate-400 font-mono pt-1">{selectedYear.year}年 ({selectedYear.age}岁)</span>
-                <span className="ml-auto px-2 py-1 rounded bg-violet-50 text-violet-700 text-xs font-bold border border-violet-100">
-                  {selectedYear.ganGod}年
-                </span>
+          {selectedDaYun && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="px-5 py-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                <div>
+                  <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <span className="font-serif bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-base">
+                      {selectedDaYun.gan}{selectedDaYun.zhi}
+                    </span>
+                    <span>大运详情</span>
+                  </h4>
+                </div>
+                <div className="text-xs text-slate-400 font-mono bg-white px-2 py-1 rounded border border-slate-100">
+                  {selectedDaYun.startYear} - {selectedDaYun.startYear + 9}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <div className="font-bold text-slate-700 mb-1 flex items-center gap-1">
-                    <Info size={12} className="text-indigo-500" /> 主星含义
-                  </div>
-                  <div className="text-slate-600 leading-relaxed">
-                    {TEN_GOD_INFO[selectedYear.ganGod]}
-                  </div>
+              <div className="p-4 bg-slate-50/30">
+                <h5 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">流年运势</h5>
+                <div className="grid grid-cols-2 min-[450px]:grid-cols-3 sm:grid-cols-5 gap-3">
+                  {selectedDaYun.liuNian.map((year, idx) => {
+                    const isActive = selectedYear?.year === year.year;
+                    return (
+                      <button key={idx} onClick={() => setSelectedYear(year)} className={`relative rounded-xl p-3 border transition-all duration-200 group cursor-pointer text-left ${isActive ? 'bg-white border-violet-500 ring-2 ring-violet-200 shadow-md transform -translate-y-0.5' : 'bg-white border-slate-100 hover:border-violet-300 hover:shadow-sm'}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[10px] font-mono text-slate-400">{year.year}</span>
+                          <span className={`text-[10px] font-medium px-1.5 rounded-full ${isActive ? 'bg-violet-100 text-violet-600' : 'bg-slate-100 text-slate-500'}`}>{year.age}岁</span>
+                        </div>
+                        <div className="text-center mb-2 flex flex-col items-center">
+                          <span className={`text-[10px] mb-0.5 font-bold scale-90 ${isActive ? 'text-violet-600' : 'text-slate-400'}`}>{year.ganGod}</span>
+                          <span className={`text-lg font-serif font-black leading-none ${isActive ? 'text-violet-900' : 'text-slate-800'}`}>{year.gan}{year.zhi}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
-                <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-100/50">
-                  <div className="font-bold text-slate-700 mb-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span> 流年建议
-                  </div>
-                  <div className="text-slate-700 leading-relaxed">
-                    {YEAR_ADVICE[selectedYear.ganGod] || "平凡是福，顺其自然。建议多行善事，保持平常心。"}
-                  </div>
-                  {/* Fake logic for Risk Warning based on typical turbulent stars */}
-                  {['七杀', '伤官', '劫财'].includes(selectedYear.ganGod) && (
-                    <div className="mt-2 pt-2 border-t border-amber-200/30 text-amber-600 font-medium text-xs flex items-center gap-1">
-                      <AlertCircle size={10} /> 此年气场波动较大，凡事宜三思后行。
+
+                {selectedYear && (
+                  <div className="mt-4 p-4 rounded-xl bg-white border border-violet-100 shadow-sm animate-in fade-in slide-in-from-top-2 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-violet-500"></div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl font-serif font-black text-slate-800">{selectedYear.gan}{selectedYear.zhi}</span>
+                      <span className="text-sm text-slate-400 font-mono pt-1">{selectedYear.year}年</span>
+                      <span className="ml-auto px-2 py-1 rounded bg-violet-50 text-violet-700 text-xs font-bold border border-violet-100">{selectedYear.ganGod}年</span>
                     </div>
-                  )}
-                </div>
+                    <div className="bg-slate-50 p-3 rounded-lg text-xs sm:text-sm">
+                      <div className="text-slate-600 leading-relaxed">{TEN_GOD_INFO[selectedYear.ganGod]}</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
-
         </div>
-      </div>
+      )}
     </div>
   );
 };
