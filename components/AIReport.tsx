@@ -1,110 +1,103 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BaziChart } from '../types';
-import { generateFullReport, generateMicroInterpretation } from '../services/geminiService';
-import { MessageSquare, Sparkles, AlertCircle } from 'lucide-react';
+import { generateFullReport } from '../services/aiService';
+import { Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface Props {
   chart: BaziChart;
 }
 
 export const AIReport: React.FC<Props> = ({ chart }) => {
-  const [apiKey, setApiKey] = useState('');
   const [report, setReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isKeySaved, setIsKeySaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const savedKey = localStorage.getItem('tianji_gemini_key');
-    if (savedKey) {
-        setApiKey(savedKey);
-        setIsKeySaved(true);
-    }
-  }, []);
-
-  const handleSaveKey = () => {
-    if(apiKey) {
-        localStorage.setItem('tianji_gemini_key', apiKey);
-        setIsKeySaved(true);
-    }
-  };
-
-  const handleClearKey = () => {
-      localStorage.removeItem('tianji_gemini_key');
-      setApiKey('');
-      setIsKeySaved(false);
-  };
+  // Check if env var is loaded (for UI feedback only)
+  const hasEnvKey = !!import.meta.env.VITE_OPENAI_API_KEY;
 
   const handleGenerate = async () => {
-    if (!apiKey) return;
     setLoading(true);
-    const result = await generateFullReport(apiKey, chart);
-    setReport(result);
-    setLoading(false);
+    setError(null);
+    try {
+      const result = await generateFullReport(chart);
+      setReport(result);
+    } catch (err: any) {
+      setError(err.message || "生成失败，请检查网络或配置");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[400px]">
-      <div className="flex items-center gap-2 mb-6 text-mystic-700">
-        <Sparkles size={24} />
-        <h2 className="text-xl font-bold">天机·AI 命理大师</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-mystic-700">
+          <Sparkles size={24} />
+          <h2 className="text-xl font-bold">天机·AI 命理大师</h2>
+        </div>
+        <div className="text-xs">
+          {hasEnvKey ? (
+            <span className="flex items-center gap-1 text-green-600 font-medium bg-green-50 px-2 py-1 rounded">
+              <CheckCircle2 size={12} /> AI 服务已连接
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded">
+              <AlertCircle size={12} /> 未检测到 API 配置
+            </span>
+          )}
+        </div>
       </div>
 
-      {!isKeySaved ? (
-        <div className="bg-orange-50 border border-orange-100 rounded-lg p-4 mb-4">
-            <div className="flex items-start gap-2 text-orange-700 mb-2">
-                <AlertCircle size={18} />
-                <span className="font-bold text-sm">需要 API Key</span>
-            </div>
-            <p className="text-xs text-orange-600 mb-3">
-                使用 AI 功能需要提供 Google Gemini API Key。Key 仅保存在本地浏览器，不会上传服务器。
-            </p>
-            <div className="flex gap-2">
-                <input 
-                    type="password" 
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="输入 Gemini API Key"
-                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mystic-500"
-                />
-                <button 
-                    onClick={handleSaveKey}
-                    className="bg-mystic-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-mystic-700"
-                >
-                    保存 Key
-                </button>
-            </div>
-            <p className="text-[10px] text-gray-400 mt-2">获取 Key: <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" className="underline">Google AI Studio</a></p>
-        </div>
-      ) : (
-        <div className="mb-4 flex justify-between items-center bg-gray-50 px-3 py-2 rounded">
-            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                ● API Key 已激活
-            </span>
-            <button onClick={handleClearKey} className="text-xs text-gray-400 hover:text-red-500 underline">更换</button>
-        </div>
-      )}
-
-      {!report && isKeySaved && (
+      {!report && (
         <div className="text-center py-12">
-            <p className="text-gray-500 mb-6">解锁 3000 字全息命运推演报告，包含格局、事业、情感深度分析。</p>
-            <button 
-                onClick={handleGenerate}
-                disabled={loading}
-                className="bg-gradient-to-r from-mystic-600 to-indigo-600 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center gap-2 mx-auto"
-            >
-                {loading ? '天机推演中...' : '生成天机报告'}
-                {!loading && <Sparkles size={16} />}
-            </button>
+          {!hasEnvKey && (
+            <div className="mb-6 p-4 bg-amber-50 text-amber-800 text-sm rounded-lg max-w-lg mx-auto text-left">
+              <p className="font-bold mb-1">配置说明：</p>
+              <p>请在项目根目录的 <code>.env.local</code> 文件中配置以下变量，配置后需重启开发服务：</p>
+              <pre className="bg-amber-100 p-2 rounded mt-2 text-xs overflow-x-auto font-mono">
+                VITE_OPENAI_API_KEY=sk-xxx...{'\n'}
+                VITE_OPENAI_BASE_URL=https://api.openai.com/v1{'\n'}
+                VITE_OPENAI_MODEL=gpt-4o
+              </pre>
+            </div>
+          )}
+
+          <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            天机大师将融合古籍智慧与现代算法，为您生成 3000 字深度命运推演报告。
+          </p>
+
+          {error && (
+            <div className="mb-6 text-red-500 text-sm bg-red-50 p-3 rounded-lg inline-block">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleGenerate}
+            disabled={loading || !hasEnvKey}
+            className="bg-gradient-to-r from-mystic-600 to-indigo-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto hover:-translate-y-0.5"
+          >
+            {loading ? '天机推演中...' : '开始八字推演'}
+            {!loading && <Sparkles size={16} />}
+          </button>
         </div>
       )}
 
       {report && (
-        <div className="prose prose-sm max-w-none prose-headings:text-mystic-800 prose-p:text-gray-600">
-            <div className="markdown-body" dangerouslySetInnerHTML={{ 
-                // In real app, use a markdown parser like react-markdown. 
-                // For this demo, simple replacement or plain text display.
-                __html: report.replace(/\n/g, '<br/>').replace(/# (.*)/g, '<h1 class="text-xl font-bold my-4">$1</h1>').replace(/## (.*)/g, '<h2 class="text-lg font-bold my-3">$1</h2>')
-            }} />
+        <div className="prose prose-slate max-w-none prose-headings:text-mystic-800 prose-p:text-slate-600 prose-li:text-slate-600 animate-in fade-in duration-500">
+          {/* Simple Markdown Render - In production use react-markdown */}
+          <div dangerouslySetInnerHTML={{
+            __html: report
+              .replace(/^# (.*)/gm, '<h1 class="text-2xl font-bold my-4 border-b border-gray-100 pb-2">$1</h1>')
+              .replace(/^## (.*)/gm, '<h2 class="text-xl font-bold my-4 text-violet-800 mt-8 flex items-center gap-2"><span class="w-1 h-6 bg-violet-600 rounded-full inline-block"></span>$1</h2>')
+              .replace(/^### (.*)/gm, '<h3 class="text-lg font-bold my-2 text-slate-700">$1</h3>')
+              .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 bg-slate-100 px-1 rounded mx-0.5">$1</strong>')
+              .replace(/\n/g, '<br/>')
+          }} />
+
+          <div className="mt-12 pt-6 border-t border-gray-100 text-center text-xs text-gray-400">
+            AI 生成内容仅供娱乐参考，请相信科学，理性对待。
+          </div>
         </div>
       )}
     </div>

@@ -295,7 +295,7 @@ export const calculateBazi = (profile: UserProfile): BaziChart => {
     const trueTimeStr = `${trueTimeDate.getHours().toString().padStart(2, '0')}:${trueTimeDate.getMinutes().toString().padStart(2, '0')}`;
 
     const eightChar = lunar.getEightChar();
-    eightChar.setSect(1);
+    eightChar.setSect(2);
 
     const yearGan = eightChar.getYearGan();
     const yearZhi = eightChar.getYearZhi();
@@ -401,7 +401,7 @@ export const calculateBazi = (profile: UserProfile): BaziChart => {
 
     let qiYunInfo = '计算中';
     try {
-      qiYunInfo = `出生后 ${yun.getYear()}年 ${yun.getMonth()}月 ${yun.getDay()}天 起运`;
+      qiYunInfo = `出生后 ${yun.getStartYear()}年 ${yun.getStartMonth()}月 ${yun.getStartDay()}天 起运`;
     } catch (e) {
       console.warn('QiYun Info Error', e);
       qiYunInfo = '起运时间计算异常';
