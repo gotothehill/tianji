@@ -95,4 +95,5 @@ export enum TabType {
   SHEN_SHA = 'shen_sha',
   SYNASTRY = 'synastry', // Combined Chart
   AI = 'ai',
+  AI_CHAT = 'ai_chat', // New Bot Tab
 }

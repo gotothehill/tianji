@@ -17,9 +17,98 @@ interface OpenAIResponse {
     };
 }
 
+// --- Specific Storage APIs ---
+
+// 1. Daily Fortune Storage
+export const DailyFortuneAPI = {
+    save: async (signature: string, date: string, content: string): Promise<void> => {
+        return new Promise((resolve) => {
+            const key = `TJ_DAILY_V2_${signature}_${date}`;
+            localStorage.setItem(key, content);
+            resolve();
+        });
+    },
+    get: async (signature: string, date: string): Promise<string | null> => {
+        return new Promise((resolve) => {
+            const key = `TJ_DAILY_V2_${signature}_${date}`;
+            resolve(localStorage.getItem(key));
+        });
+    }
+};
+
+// 2. Chat History Storage
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'assistant' | 'system' | 'divider'; // 'divider' for Context Clear
+    content: string;
+    timestamp: number;
+}
+
+export interface ChatSession {
+    messages: ChatMessage[];
+    suggestions: string[];
+    lastUpdated: number;
+}
+
+export const ChatStorageAPI = {
+    save: async (profileId: string, session: { messages: ChatMessage[], suggestions: string[] }): Promise<void> => {
+        return new Promise((resolve) => {
+            const key = `TJ_CHAT_V1_${profileId}`;
+            const data: ChatSession = {
+                messages: session.messages,
+                suggestions: session.suggestions,
+                lastUpdated: Date.now()
+            };
+            localStorage.setItem(key, JSON.stringify(data));
+            resolve();
+        });
+    },
+    get: async (profileId: string): Promise<ChatSession | null> => {
+        return new Promise((resolve) => {
+            const key = `TJ_CHAT_V1_${profileId}`;
+            const raw = localStorage.getItem(key);
+            if (!raw) {
+                resolve(null);
+                return;
+            }
+            try {
+                const parsed = JSON.parse(raw);
+                // Schema Migration: Handle legacy array format
+                if (Array.isArray(parsed)) {
+                    resolve({
+                        messages: parsed,
+                        suggestions: [], // Legacy has no persisted suggestions
+                        lastUpdated: 0
+                    });
+                } else {
+                    resolve(parsed as ChatSession);
+                }
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    },
+    clear: async (profileId: string): Promise<void> => {
+        return new Promise((resolve) => {
+            const key = `TJ_CHAT_V1_${profileId}`;
+            localStorage.removeItem(key);
+            resolve();
+        });
+    }
+};
+
+// --- AI Utils ---
+
 const callOpenAI = async (messages: any[], temperature: number = 0.7): Promise<string> => {
     if (!API_KEY) {
         throw new Error("Missing API Key. Please configure VITE_OPENAI_API_KEY in .env.local");
+    }
+
+    // Support Context Clearing in regular calls too
+    let effectiveMessages = messages;
+    const lastDividerIdx = messages.findLastIndex((m: any) => m.role === 'divider');
+    if (lastDividerIdx !== -1) {
+        effectiveMessages = messages.slice(lastDividerIdx + 1);
     }
 
     const endpoint = `${BASE_URL.replace(/\/$/, '')}/chat/completions`;
@@ -33,7 +122,7 @@ const callOpenAI = async (messages: any[], temperature: number = 0.7): Promise<s
             },
             body: JSON.stringify({
                 model: MODEL,
-                messages: messages,
+                messages: effectiveMessages.map(m => ({ role: m.role, content: m.content })),
                 temperature: temperature,
             })
         });
@@ -50,6 +139,132 @@ const callOpenAI = async (messages: any[], temperature: number = 0.7): Promise<s
         throw error;
     }
 };
+
+// --- Streaming Support ---
+const textDecoder = new TextDecoder("utf-8");
+
+export const streamChatWithTianJi = async (
+    history: ChatMessage[],
+    chart: BaziChart,
+    onChunk: (chunk: string) => void
+): Promise<{ fullReply: string, suggestions: string[] }> => {
+
+    // 1. Prepare Context & Divider Logic
+    let effectiveHistory = history;
+    const lastDividerIdx = history.findLastIndex(m => m.role === 'divider');
+    if (lastDividerIdx !== -1) {
+        effectiveHistory = history.slice(lastDividerIdx + 1);
+    }
+
+    // 2. System Prompt
+    const systemPrompt = `
+        # Role
+        你即是“天机先生”——一位博古通今的命理宗师。你的回答应基于用户提供的八字命盘信息。
+
+        # User's Bazi Context
+        - 日元: ${chart.pillars.day.gan}
+        - 月令: ${chart.pillars.month.zhi}
+        - 整体旺衰: ${chart.wuxing.summary}
+        - 喜用神: ${chart.wuxing.details?.yongShen || '需推导'}
+        
+        # Output Requirement
+        1. Answer the user's question professionally, referring to their specific chart elements.
+        2. Keep the advice practical and encouraging.
+        3. AFTER your reply, use the separator "---SUG." and list 3 short follow-up questions.
+
+        Format:
+        [Answer Content...]
+        ---SUG.
+        1. [Follow up Q1]
+        2. [Follow up Q2]
+        3. [Follow up Q3]
+    `;
+
+    // Limit context to 6 turns (12 messages) to save tokens
+    const contextMessages = effectiveHistory.slice(-12);
+
+    const apiMessages = [
+        { role: 'system', content: systemPrompt },
+        ...contextMessages.map(m => ({ role: m.role, content: m.content }))
+    ];
+
+    // 3. Setup Stream
+    if (!API_KEY) throw new Error("Missing API Key");
+    const endpoint = `${BASE_URL.replace(/\/$/, '')}/chat/completions`;
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+            model: MODEL,
+            messages: apiMessages,
+            temperature: 0.7,
+            stream: true, // Enable streaming
+        })
+    });
+
+    if (!response.ok || !response.body) throw new Error("Stream API Error");
+
+    const reader = response.body.getReader();
+    let fullText = "";
+    let buffer = "";
+
+    // 4. Read Loop
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += textDecoder.decode(value, { stream: true });
+
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ""; // Keep incomplete line
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                // Handle different OpenAI stream formats (sometimes data: { ... })
+                if (!trimmed || trimmed === 'data: [DONE]') continue;
+                if (!trimmed.startsWith('data: ')) continue;
+
+                try {
+                    const json = JSON.parse(line.slice(6));
+                    const content = json.choices[0]?.delta?.content || "";
+
+                    fullText += content;
+
+                    // Allow raw stream. UI handles the hiding of suggestions.
+                    onChunk(content);
+
+                } catch (e) { /* ignore partial json */ }
+            }
+        }
+    } catch (e) {
+        console.error("Stream reader error", e);
+    }
+
+    // 5. Post-Processing
+    const parts = fullText.split('---SUG.');
+    const reply = parts[0].trim();
+    let suggestions: string[] = [];
+    if (parts.length > 1) {
+        suggestions = parts[1].trim().split('\n')
+            .map(s => s.replace(/^\d+\.\s*/, '').trim())
+            .filter(s => s.length > 0)
+            .slice(0, 3);
+    }
+
+    if (suggestions.length === 0) {
+        // Fallback suggestions
+        suggestions = ["还能告诉我什么？", "未来三个月的运势？", "有什么化解建议？"];
+    }
+
+    return { fullReply: reply, suggestions };
+};
+
+// --- Report Functions (Retained) ---
 
 export const generateMicroInterpretation = async (
     contextData: any,
@@ -195,36 +410,33 @@ export const generateDailyGuide = async (
     ], 0.7);
 };
 
-// --- Daily Fortune Storage Interface ---
-// Currently using LocalStorage, but designed as an Async API to allow easy migration to backend storage.
-export const DailyFortuneAPI = {
-    /**
-     * Save the daily fortune for a specific user/profile context.
-     * @param signature Unique ID path (e.g., hash of birth data or user ID)
-     * @param date ISO date string (YYYY-MM-DD)
-     * @param content The markdown content to save
-     */
-    save: async (signature: string, date: string, content: string): Promise<void> => {
-        // Mocking an async backend call
-        return new Promise((resolve) => {
-            const key = `TJ_DAILY_V2_${signature}_${date}`;
-            localStorage.setItem(key, content);
-            console.log(`[DailyFortuneAPI] Saved fortune for ${key}`);
-            resolve();
-        });
-    },
+export const generateStarterQuestions = async (chart: BaziChart): Promise<string[]> => {
+    const prompt = `
+        Context: User's Bazi Chart details:
+        Day Master: ${chart.pillars.day.gan}
+        Month Branch: ${chart.pillars.month.zhi}
+        Year Pillar: ${chart.pillars.year.gan}${chart.pillars.year.zhi}
+        Strong/Weak: ${chart.wuxing.summary}
 
-    /**
-     * Retrieve the daily fortune if it exists.
-     * @param signature Unique ID path
-     * @param date ISO date string (YYYY-MM-DD)
-     */
-    get: async (signature: string, date: string): Promise<string | null> => {
-        return new Promise((resolve) => {
-            const key = `TJ_DAILY_V2_${signature}_${date}`;
-            const data = localStorage.getItem(key);
-            if (data) console.log(`[DailyFortuneAPI] Loaded fortune for ${key}`);
-            resolve(data);
-        });
+        Task: Generate 3 short, specific questions (under 15 words) that this user might want to ask a fortune teller based on their chart structure.
+        Examples: "我今年的财运如何？", "适合往哪个方向发展？", "我的正缘什么时候出现？"
+        
+        Output Rule: Return ONLY a valid JSON array of strings. Do not add markdown code blocks.
+    `;
+
+    try {
+        const result = await callOpenAI([{ role: 'user', content: prompt }], 0.7);
+        // Clean cleanup
+        const clean = result.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(clean);
+    } catch (e) {
+        return ["我今年的财运如何？", "我的事业运势怎样？", "命中注定的另一半特征？"];
     }
+};
+
+export const chatWithTianJi = async (
+    history: { role: 'user' | 'assistant', content: string }[],
+    chart: BaziChart
+) => {
+    return { reply: "[Please use streamChatWithTianJi]", suggestions: [] };
 };

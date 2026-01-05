@@ -10,6 +10,7 @@ import { Timeline } from './components/Timeline';
 import { LifeBook } from './components/LifeBook';
 import { ShenShaTable } from './components/ShenShaTable';
 import { Synastry } from './components/Synastry';
+import { AIChat } from './components/AIChat';
 import { Compass, User, Plus, Trash2, Calendar, MapPin, Menu, X, Search, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -154,6 +155,7 @@ const App: React.FC = () => {
         [TabType.TIMELINE]: '运程',
         [TabType.CHART]: '命盘',
         [TabType.LIFE_BOOK]: '命书',
+        [TabType.AI_CHAT]: '天问',
         [TabType.SYNASTRY]: '合盘',
         [TabType.SHEN_SHA]: '神煞',
     };
@@ -393,6 +395,9 @@ const App: React.FC = () => {
                             )}
                             {activeTab === TabType.TIMELINE && (
                                 <Timeline chart={baziChart} />
+                            )}
+                            {activeTab === TabType.AI_CHAT && (
+                                <AIChat chart={baziChart} profileId={activeProfile.id} profileName={activeProfile.name} />
                             )}
                             {activeTab === TabType.LIFE_BOOK && (
                                 <LifeBook chart={baziChart} currentProfile={activeProfile} />
