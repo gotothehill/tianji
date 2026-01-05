@@ -68,6 +68,7 @@ export const AIChat: React.FC<Props> = ({ chart, profileId, profileName }) => {
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const loadedProfileId = useRef<string | null>(null);
+    const isSubmitting = useRef(false);
 
     // Initial Load - Force reset when profileId changes
     useEffect(() => {
@@ -128,7 +129,8 @@ export const AIChat: React.FC<Props> = ({ chart, profileId, profileName }) => {
     // Save on update - Only if we are saving to the CURRENTLY loaded profile
     useEffect(() => {
         // Prevent partial overwrites during loading or initial render
-        if (loadedProfileId.current === profileId && !isLoading) {
+        // Also prevent saving empty suggestions while submitting a new request
+        if (loadedProfileId.current === profileId && !isLoading && !isSubmitting.current) {
             if (messages.length > 0) {
                 ChatStorageAPI.save(profileId, { messages, suggestions });
             }
@@ -138,6 +140,9 @@ export const AIChat: React.FC<Props> = ({ chart, profileId, profileName }) => {
 
     const handleSend = async (text: string) => {
         if (!text.trim() || !chart) return;
+
+        // Lock saving immediately
+        isSubmitting.current = true;
 
         const userMsg: ChatMessage = {
             id: `u-${Date.now()}`,
@@ -203,6 +208,7 @@ export const AIChat: React.FC<Props> = ({ chart, profileId, profileName }) => {
             setMessages(prev => [...prev.filter(m => m.id !== botMsgId), errorMsg]);
         } finally {
             setIsLoading(false);
+            isSubmitting.current = false;
         }
     };
 

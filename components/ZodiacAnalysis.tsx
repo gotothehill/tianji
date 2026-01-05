@@ -1,5 +1,5 @@
-import React from 'react';
-import { Heart, AlertTriangle, Lightbulb } from 'lucide-react';
+import React, { useState } from 'react';
+import { Heart, AlertTriangle, Lightbulb, Info } from 'lucide-react';
 
 interface Props {
   yearZhi: string;
@@ -74,12 +74,38 @@ const ZODIAC_RELATIONS: Record<string, {
 
 const Tag: React.FC<{ text: string; type: 'red' | 'gray' }> = ({ text, type }) => (
   <span className={`
-    inline-block px-3 py-1 rounded-full text-sm font-medium mr-2 mb-2
+    inline-block px-3 py-1 rounded-full text-sm font-medium mr-2 mb-2 hover:scale-105 transition-transform cursor-default
     ${type === 'red' ? 'bg-white text-rose-500 shadow-sm border border-rose-100' : 'bg-white text-gray-500 shadow-sm border border-gray-200'}
   `}>
     {text}
   </span>
 );
+
+interface InfoTooltipProps {
+  title: string;
+  content: string;
+}
+
+const InfoTooltip: React.FC<InfoTooltipProps> = ({ title, content }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative inline-flex items-center ml-1">
+      <Info
+        size={12}
+        className="text-gray-300 hover:text-indigo-500 cursor-pointer transition-colors"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+      />
+      {show && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-800 text-white text-xs p-2 rounded shadow-lg z-10 leading-relaxed">
+          <div className="font-bold mb-1 pb-1 border-b border-gray-600">{title}</div>
+          {content}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export const ZodiacAnalysis: React.FC<Props> = ({ yearZhi }) => {
   const animal = ZHI_TO_ANIMAL[yearZhi] || '';
@@ -109,22 +135,31 @@ export const ZodiacAnalysis: React.FC<Props> = ({ yearZhi }) => {
             <Heart size={18} className="fill-current" />
             <h3>缘分相合</h3>
           </div>
-          
+
           <div className="space-y-3">
             <div className="flex items-start">
-              <span className="text-xs font-bold text-rose-400 w-12 mt-1.5">三合</span>
+              <div className="flex items-center w-16 mt-1.5 flex-shrink-0">
+                <span className="text-xs font-bold text-rose-400">三合</span>
+                <InfoTooltip title="三合 (Three Harmony)" content="明合。代表志同道合、配合默契，是极好的合作与婚配组合。" />
+              </div>
               <div className="flex-1">
                 {rel.sanHe.map(a => <Tag key={a} text={a} type="red" />)}
               </div>
             </div>
             <div className="flex items-start">
-              <span className="text-xs font-bold text-rose-400 w-12 mt-1.5">六合</span>
+              <div className="flex items-center w-16 mt-1.5 flex-shrink-0">
+                <span className="text-xs font-bold text-rose-400">六合</span>
+                <InfoTooltip title="六合 (Six Harmony)" content="暗合。代表互为贵人，私下关系好，互相扶持，如胶似漆。" />
+              </div>
               <div className="flex-1">
                 {rel.liuHe.map(a => <Tag key={a} text={a} type="red" />)}
               </div>
             </div>
             <div className="flex items-start">
-              <span className="text-xs font-bold text-rose-400 w-12 mt-1.5">三会</span>
+              <div className="flex items-center w-16 mt-1.5 flex-shrink-0">
+                <span className="text-xs font-bold text-rose-400">三会</span>
+                <InfoTooltip title="三会 (Seasonal)" content="同党。同气相求，力量最大，往往代表亲戚朋友或同乡互助。" />
+              </div>
               <div className="flex-1">
                 {rel.sanHui.map(a => <Tag key={a} text={a} type="red" />)}
               </div>
@@ -141,25 +176,37 @@ export const ZodiacAnalysis: React.FC<Props> = ({ yearZhi }) => {
 
           <div className="space-y-3">
             <div className="flex items-start">
-              <span className="text-xs font-bold text-gray-400 w-12 mt-1.5">相冲</span>
+              <div className="flex items-center w-16 mt-1.5 flex-shrink-0">
+                <span className="text-xs font-bold text-gray-400">相冲</span>
+                <InfoTooltip title="相冲 (Clash)" content="五行对立。代表动荡、冲突、意见不合，容易导致分离或变动。" />
+              </div>
               <div className="flex-1">
                 {rel.chong.map(a => <Tag key={a} text={a} type="gray" />)}
               </div>
             </div>
             <div className="flex items-start">
-              <span className="text-xs font-bold text-gray-400 w-12 mt-1.5">相刑</span>
+              <div className="flex items-center w-16 mt-1.5 flex-shrink-0">
+                <span className="text-xs font-bold text-gray-400">相刑</span>
+                <InfoTooltip title="相刑 (Punishment)" content="互为折磨。代表纠结、难受、精神压力，或法律、身体上的小麻烦。" />
+              </div>
               <div className="flex-1">
                 {rel.xing.map(a => <Tag key={a} text={a} type="gray" />)}
               </div>
             </div>
             <div className="flex items-start">
-              <span className="text-xs font-bold text-gray-400 w-12 mt-1.5">相害</span>
+              <div className="flex items-center w-16 mt-1.5 flex-shrink-0">
+                <span className="text-xs font-bold text-gray-400">相害</span>
+                <InfoTooltip title="相害 (Harm)" content="互相伤害。代表小人破坏、背后使坏，或者亲人之间的不和睦。" />
+              </div>
               <div className="flex-1">
                 {rel.hai.map(a => <Tag key={a} text={a} type="gray" />)}
               </div>
             </div>
-             <div className="flex items-start">
-              <span className="text-xs font-bold text-gray-400 w-12 mt-1.5">相破</span>
+            <div className="flex items-start">
+              <div className="flex items-center w-16 mt-1.5 flex-shrink-0">
+                <span className="text-xs font-bold text-gray-400">相破</span>
+                <InfoTooltip title="相破 (Destruction)" content="破坏干扰。代表内部破坏，好事多磨，通常指人际关系裂痕。" />
+              </div>
               <div className="flex-1">
                 {rel.po.map(a => <Tag key={a} text={a} type="gray" />)}
               </div>
