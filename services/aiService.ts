@@ -155,3 +155,76 @@ export const generateSynastryReport = async (
         { role: 'user', content: prompt }
     ], 0.8);
 };
+
+export const generateDailyGuide = async (
+    chart: BaziChart,
+    dateContext: any
+): Promise<string> => {
+    const prompt = `
+        # Role Definition
+        你是一名为“天机先生”的资深命理宗师。你擅长使用“流日断法”，结合用户的八字命局与当日的干支、神煞、五行气场，给出精准的每日行动指南。
+
+        # Task
+        请根据【用户八字】与【今日历法数据】，撰写一份《天机·每日流年运势指南》。
+
+        # Input Data
+        【用户日柱】：${chart.pillars.day.gan}${chart.pillars.day.zhi} (日元: ${chart.pillars.day.gan})
+        【用户喜用】：${JSON.stringify(chart.wuxing.summary.likes || '未知')}
+        【今日干支】：${dateContext.ganZhiYear}年 ${dateContext.ganZhiMonth}月 ${dateContext.ganZhiDay}日
+        【今日农历】：${dateContext.cnMonth}月${dateContext.cnDay}
+        【今日神煞】：${(dateContext.jiShen || []).join(',')}
+        【今日五行】：${dateContext.naYin || '未知'}
+
+        # Output Rules
+        1. **结构要求**：请直接输出 Markdown，包含以下简短板块：
+           - **今日运势·一言诀** (一句诗或成语概括今日运势核心)
+           - **💰 财运方位** (结合日元与今日干支，指出今日利财的方位及行业/活动建议)
+           - **💼 事业机缘** (今日工作运势，贵人方位，适合做什么决策)
+           - **❤️ 情感人际** (桃花运势或社交建议)
+           - **🛡️ 避险指南** (基于今日冲煞 ${dateContext.chong || '无'}，给出避雷建议)
+           - **💡 天机锦囊** (今日幸运色、幸运数字、首选开运活动)
+
+        2. **Tone of Voice**:
+           - 亲切、笃定、实用。
+           - 避免模棱两可，给出具体的建议（如“宜穿红色上衣”，“宜向正南谈合作”）。
+    `;
+
+    return callOpenAI([
+        { role: 'system', content: 'You are "Master TianJi", creating a daily fortune guide.' },
+        { role: 'user', content: prompt }
+    ], 0.7);
+};
+
+// --- Daily Fortune Storage Interface ---
+// Currently using LocalStorage, but designed as an Async API to allow easy migration to backend storage.
+export const DailyFortuneAPI = {
+    /**
+     * Save the daily fortune for a specific user/profile context.
+     * @param signature Unique ID path (e.g., hash of birth data or user ID)
+     * @param date ISO date string (YYYY-MM-DD)
+     * @param content The markdown content to save
+     */
+    save: async (signature: string, date: string, content: string): Promise<void> => {
+        // Mocking an async backend call
+        return new Promise((resolve) => {
+            const key = `TJ_DAILY_V2_${signature}_${date}`;
+            localStorage.setItem(key, content);
+            console.log(`[DailyFortuneAPI] Saved fortune for ${key}`);
+            resolve();
+        });
+    },
+
+    /**
+     * Retrieve the daily fortune if it exists.
+     * @param signature Unique ID path
+     * @param date ISO date string (YYYY-MM-DD)
+     */
+    get: async (signature: string, date: string): Promise<string | null> => {
+        return new Promise((resolve) => {
+            const key = `TJ_DAILY_V2_${signature}_${date}`;
+            const data = localStorage.getItem(key);
+            if (data) console.log(`[DailyFortuneAPI] Loaded fortune for ${key}`);
+            resolve(data);
+        });
+    }
+};
