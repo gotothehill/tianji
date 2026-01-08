@@ -42,11 +42,16 @@
         <block v-if="activeProfile && baziChart">
             <!-- Header Info -->
             <view class="profile-header">
-                <view class="ph-top">
-                    <text class="ph-name">{{ activeProfile.name }}</text>
-                    <text class="ph-gender" :class="activeProfile.gender === 1 ? 'male' : 'female'">{{ activeProfile.gender === 1 ? '乾造' : '坤造' }}</text>
+                <view class="ph-left">
+                    <view class="ph-top">
+                        <text class="ph-name">{{ activeProfile.name }}</text>
+                        <text class="ph-gender" :class="activeProfile.gender === 1 ? 'male' : 'female'">{{ activeProfile.gender === 1 ? '乾造' : '坤造' }}</text>
+                    </view>
+                    <text class="ph-birth">{{ activeProfile.birthDate }} {{ activeProfile.birthTime }}</text>
                 </view>
-                <text class="ph-birth">{{ activeProfile.birthDate }} {{ activeProfile.birthTime }}</text>
+                <view class="ph-actions">
+                    <view class="switch-btn" @click="showSidebar = true">档案管理</view>
+                </view>
             </view>
             
             <!-- Tabs -->
@@ -65,7 +70,7 @@
             </scroll-view>
             
             <!-- Tab Content -->
-            <view class="tab-panel" :class="{ 'tab-panel-chat': activeTab === 'ai_chat' }">
+            <view class="tab-panel" :class="{ 'tab-panel-chat': activeTab === 'ai_chat' }" :key="activeProfileId || 'none'">
                 <BaziChart v-if="activeTab === 'chart'" :chart="baziChart" />
                 <ElementalChart v-if="activeTab === 'chart'" :wuxing="baziChart.wuxing" />
                 <ZodiacAnalysis v-if="activeTab === 'chart'" :yearZhi="baziChart.pillars.year.zhi" />
@@ -93,11 +98,16 @@
         <block v-if="activeProfile && baziChart">
             <!-- Header Info -->
             <view class="profile-header">
-                <view class="ph-top">
-                    <text class="ph-name">{{ activeProfile.name }}</text>
-                    <text class="ph-gender" :class="activeProfile.gender === 1 ? 'male' : 'female'">{{ activeProfile.gender === 1 ? '乾造' : '坤造' }}</text>
+                <view class="ph-left">
+                    <view class="ph-top">
+                        <text class="ph-name">{{ activeProfile.name }}</text>
+                        <text class="ph-gender" :class="activeProfile.gender === 1 ? 'male' : 'female'">{{ activeProfile.gender === 1 ? '乾造' : '坤造' }}</text>
+                    </view>
+                    <text class="ph-birth">{{ activeProfile.birthDate }} {{ activeProfile.birthTime }}</text>
                 </view>
-                <text class="ph-birth">{{ activeProfile.birthDate }} {{ activeProfile.birthTime }}</text>
+                <view class="ph-actions">
+                    <view class="switch-btn" @click="showSidebar = true">切换档案</view>
+                </view>
             </view>
             
             <!-- Tabs -->
@@ -116,7 +126,7 @@
             </scroll-view>
             
             <!-- Tab Content -->
-            <view class="tab-panel tab-panel-chat">
+            <view class="tab-panel tab-panel-chat" :key="activeProfileId || 'none'">
                 <AIChat :chart="baziChart" :profileId="activeProfileId" />
             </view>
         </block>
@@ -454,13 +464,24 @@ const createProfile = () => {
 .profile-header {
     background: #fff; padding: 24rpx; border-radius: 24rpx;
     border: 1px solid #f1f5f9; margin-bottom: 24rpx;
+    display: flex; align-items: center; justify-content: space-between; gap: 24rpx;
 }
+.ph-left { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .ph-top { display: flex; align-items: center; gap: 16rpx; margin-bottom: 8rpx; }
 .ph-name { font-size: 36rpx; font-weight: bold; color: #1e293b; }
 .ph-gender { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 999rpx; }
 .male { background: #eff6ff; color: #2563eb; }
 .female { background: #fdf2f8; color: #db2777; }
 .ph-birth { font-size: 24rpx; color: #64748b; }
+.ph-actions { flex-shrink: 0; }
+.switch-btn {
+    padding: 10rpx 20rpx;
+    border-radius: 999rpx;
+    background: #f5f3ff;
+    color: #6d28d9;
+    font-size: 24rpx;
+    border: 1px solid #ddd6fe;
+}
 
 /* Tabs */
 .tabs-scroll { white-space: nowrap; margin-bottom: 24rpx; }
