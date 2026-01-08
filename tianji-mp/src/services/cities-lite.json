@@ -1,0 +1,51 @@
+[
+    {
+        "name": "Beijing",
+        "subcountry": "Beijing",
+        "country": "China",
+        "latitude": 39.9042,
+        "longitude": 116.4074
+    },
+    {
+        "name": "Shanghai",
+        "subcountry": "Shanghai",
+        "country": "China",
+        "latitude": 31.2304,
+        "longitude": 121.4737
+    },
+    {
+        "name": "Guangzhou",
+        "subcountry": "Guangdong",
+        "country": "China",
+        "latitude": 23.1291,
+        "longitude": 113.2644
+    },
+    {
+        "name": "Shenzhen",
+        "subcountry": "Guangdong",
+        "country": "China",
+        "latitude": 22.5431,
+        "longitude": 114.0579
+    },
+    {
+        "name": "Chengdu",
+        "subcountry": "Sichuan",
+        "country": "China",
+        "latitude": 30.5728,
+        "longitude": 104.0668
+    },
+    {
+        "name": "London",
+        "subcountry": "England",
+        "country": "United Kingdom",
+        "latitude": 51.5074,
+        "longitude": -0.1278
+    },
+    {
+        "name": "New York",
+        "subcountry": "New York",
+        "country": "United States",
+        "latitude": 40.7128,
+        "longitude": -74.0060
+    }
+]
