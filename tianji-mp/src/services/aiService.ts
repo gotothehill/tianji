@@ -461,14 +461,16 @@ export const generateDailyGuide = async (
         【今日五行】${dateContext.naYin || '未知'}
 
         # Output Rules
-        - **今日一言**：一句话概括今日能量
-        - **财运方位**：今日利财方向/行动
-        - **事业机缘**：工作/决策建议
-        - **情感人际**：情感/社交建议
-        - **避险指南**：今日忌讳与规避
-        - **天机锦囊**：幸运色/数字/行动
-
-        要求：简洁、明确、全中文输出，使用 Markdown 列表格式。
+        - 必须输出 6 行，按以下顺序：
+          1) 今日一言
+          2) 财运方位
+          3) 事业机缘
+          4) 情感人际
+          5) 避险指南
+          6) 天机锦囊
+        - 每行格式：**标题**：建议一句话 + 通俗解释一句话
+        - 不要再分点或额外标题，保持一行内完成
+        - 全中文输出，避免英文标签或混用符号
     `;
 
     return callOpenAI([{ role: 'system', content: "Expert Astrologer" }, { role: 'user', content: prompt }]);

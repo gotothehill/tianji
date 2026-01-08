@@ -139,9 +139,6 @@
                         <text class="icon">✨</text>
                         <text class="ai-title">AI 每日指南</text>
                     </view>
-                    <button class="btn-mini" @click="handleGenerateGuide" :disabled="isGenerating">
-                        {{ aiGuide ? '重新生成' : '生成' }}
-                    </button>
                 </view>
                 <view v-if="isGenerating" class="ai-loading">
                     <view class="spinner-sm"></view>
@@ -150,7 +147,7 @@
                 <view v-else-if="aiGuide" class="ai-content">
                     <view v-for="(item, idx) in aiGuideItems" :key="idx" class="ai-item">
                         <text class="ai-label">{{ item.label }}</text>
-                        <text class="ai-text">{{ item.text }}</text>
+                        <text class="ai-text" space="nbsp">{{ item.text }}</text>
                     </view>
                 </view>
                 <view v-else class="ai-empty">
@@ -284,9 +281,8 @@ const AI_GUIDE_LABELS: { key: AiGuideKey; label: string }[] = [
     { key: 'career', label: buildZhLabel(0x4e8b, 0x4e1a, 0x673a, 0x7f18) },
     { key: 'love', label: buildZhLabel(0x60c5, 0x611f, 0x4eba, 0x9645) },
     { key: 'caution', label: buildZhLabel(0x907f, 0x9669, 0x6307, 0x5357) },
-    { key: 'lucky', label: buildZhLabel(0x5e78, 0x8fd0, 0x989c, 0x8272) }
+    { key: 'lucky', label: buildZhLabel(0x5929, 0x673a, 0x9526, 0x56ca) }
 ];
-const AI_GUIDE_FALLBACK_LABEL = buildZhLabel(0x63d0, 0x793a);
 
 const normalizeAiKey = (raw: string): AiGuideKey => {
     const cleaned = raw
@@ -301,7 +297,7 @@ const normalizeAiKey = (raw: string): AiGuideKey => {
     if (cleaned.includes('career') || cleaned.includes('\u4e8b\u4e1a')) return 'career';
     if (cleaned.includes('love') || cleaned.includes('\u60c5') || cleaned.includes('\u611f\u60c5')) return 'love';
     if (cleaned.includes('caution') || cleaned.includes('\u907f') || cleaned.includes('\u6ce8\u610f')) return 'caution';
-    if (cleaned.includes('lucky') || cleaned.includes('\u5e78\u8fd0') || cleaned.includes('\u989c\u8272')) return 'lucky';
+    if (cleaned.includes('lucky') || cleaned.includes('\u5e78\u8fd0') || cleaned.includes('\u989c\u8272') || cleaned.includes('\u9526\u56ca')) return 'lucky';
     return 'other';
 };
 const nowDateStr = computed(() => now.value.toLocaleDateString());
@@ -310,31 +306,54 @@ const aiGuideItems = computed<AiGuideItem[]>(() => {
     if (!aiGuide.value) return [];
     const parsed: Partial<Record<AiGuideKey, string>> = {};
     const extras: string[] = [];
+    let currentKey: AiGuideKey | null = null;
+    const appendValue = (key: AiGuideKey, text: string) => {
+        if (!text) return;
+        if (parsed[key]) {
+            parsed[key] = `${parsed[key]}\n${text}`;
+        } else {
+            parsed[key] = text;
+        }
+    };
     aiGuide.value
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(Boolean)
         .map(line => line.replace(/^>+\s*/, '').replace(/^#+\s*/, '').replace(/^[\-\*\u2022\d\.\)\s]+/, '').replace(/\*\*/g, '').trim())
         .forEach((line) => {
-            const zhIndex = line.indexOf('\uFF1A');
-            const enIndex = line.indexOf(':');
-            const splitIndex = zhIndex >= 0 ? zhIndex : enIndex;
-            let label = "";
-            let text = line;
-            if (splitIndex >= 0) {
-                label = line.slice(0, splitIndex).trim();
-                text = line.slice(splitIndex + 1).trim();
-            }
-            if (!text) return;
-            const key = normalizeAiKey(label);
-            if (key === 'other') {
-                extras.push(text);
+            if (!line) return;
+            const labelMatch = line.match(/^(.{1,12}?)[\uFF1A:]\s*(.+)$/);
+            if (labelMatch) {
+                const label = labelMatch[1].trim();
+                const text = labelMatch[2].trim();
+                if (!text) return;
+                const key = normalizeAiKey(label);
+                if (key === 'other') {
+                    extras.push(text);
+                    currentKey = null;
+                    return;
+                }
+                currentKey = key;
+                appendValue(key, text);
                 return;
             }
-            if (!parsed[key]) {
-                parsed[key] = text;
+
+            if (currentKey) {
+                appendValue(currentKey, line);
+                return;
             }
+
+            extras.push(line);
         });
+
+    if (extras.length) {
+        const extraText = extras.join('\n');
+        if (parsed.lucky) {
+            parsed.lucky = `${parsed.lucky}\n${extraText}`;
+        } else {
+            parsed.lucky = extraText;
+        }
+    }
 
     const items: AiGuideItem[] = [];
     AI_GUIDE_LABELS.forEach((item) => {
@@ -343,7 +362,6 @@ const aiGuideItems = computed<AiGuideItem[]>(() => {
             items.push({ label: item.label, text: value });
         }
     });
-    extras.forEach((text) => items.push({ label: AI_GUIDE_FALLBACK_LABEL, text }));
     return items;
 });
 

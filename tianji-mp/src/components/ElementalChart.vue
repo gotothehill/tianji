@@ -32,8 +32,8 @@
             </view>
             <view class="radar-wrapper">
                 <canvas
-                  canvas-id="wuxingRadar"
-                  id="wuxingRadar"
+                  :canvas-id="canvasId"
+                  :id="canvasId"
                   class="radar-canvas"
                   :style="{ width: radarSize + 'px', height: radarSize + 'px' }"
                   :width="radarSize"
@@ -105,7 +105,7 @@
  </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, nextTick, getCurrentInstance } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch, nextTick, getCurrentInstance } from 'vue';
 import type { BaziChart } from '@/models';
 
 const props = defineProps<{
@@ -114,6 +114,7 @@ const props = defineProps<{
 
 const radarSize = ref(220);
 const instance = getCurrentInstance();
+const canvasId = `wuxingRadar_${Math.random().toString(36).slice(2)}`;
 
 const details = computed(() => props.wuxing.details || {
     percentage: 50,
@@ -174,7 +175,7 @@ const drawRadar = async () => {
     await nextTick();
 
     const size = radarSize.value;
-    const ctx = uni.createCanvasContext('wuxingRadar', instance.proxy);
+    const ctx = uni.createCanvasContext(canvasId, instance.proxy);
     ctx.clearRect(0, 0, size, size);
 
     const center = size / 2;
@@ -247,9 +248,21 @@ onMounted(() => {
     drawRadar();
 });
 
+onUnmounted(() => {
+    if (!instance?.proxy) return;
+    const size = radarSize.value;
+    const ctx = uni.createCanvasContext(canvasId, instance.proxy);
+    ctx.clearRect(0, 0, size, size);
+    ctx.draw();
+});
+
 watch(() => props.wuxing.scores, () => {
     drawRadar();
 }, { deep: true });
+
+watch(radarSize, () => {
+    drawRadar();
+});
 
 </script>
 
@@ -283,8 +296,8 @@ watch(() => props.wuxing.scores, () => {
 .title { font-weight: bold; color: #334155; font-size: 28rpx; }
 
 /* Radar */
-.radar-card { padding-bottom: 16rpx; }
-.radar-wrapper { display: flex; justify-content: center; align-items: center; }
+.radar-card { padding-bottom: 16rpx; overflow: hidden; position: relative; }
+.radar-wrapper { display: flex; justify-content: center; align-items: center; width: 100%; }
 .radar-canvas { display: block; }
 
 /* Gauge */

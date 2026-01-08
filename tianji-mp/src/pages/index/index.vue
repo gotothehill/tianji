@@ -7,7 +7,7 @@
            <text class="menu-icon">☰</text>
        </view>
        <view class="nav-title">
-           <text class="brand">天机·星盘 Lite</text>
+           <text class="brand">天机</text>
        </view>
        <view class="nav-right"></view>
     </view>
@@ -395,13 +395,14 @@ const createProfile = () => {
 }
 
 .navbar {
-    height: 88rpx;
+    height: calc(88rpx + var(--status-bar-height));
     background: #fff;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24rpx;
+    padding: var(--status-bar-height) 24rpx 0;
     border-bottom: 1px solid #f1f5f9;
+    box-sizing: border-box;
 }
 .menu-icon { font-size: 40rpx; padding: 10rpx; color: #64748b; }
 .nav-title { font-weight: bold; color: #334155; font-size: 32rpx; }
@@ -417,6 +418,8 @@ const createProfile = () => {
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     display: flex; flex-direction: column;
+    padding-top: var(--status-bar-height);
+    box-sizing: border-box;
 }
 .drawer.open { transform: translateX(0); }
 
