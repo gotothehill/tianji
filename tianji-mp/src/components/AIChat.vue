@@ -333,7 +333,7 @@ const parseSegments = (line: string): RenderSegment[] => {
 };
 
 const formatBlocks = (content: string): RenderBlock[] => {
-  const raw = content.split('---SUG.')[0] || '';
+  const raw = AI.splitChatReply(content).reply || '';
   const lines = raw.split(/\r?\n/);
   const blocks: RenderBlock[] = [];
 

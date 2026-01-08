@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
+import { preloadCities } from "@/services/cityService";
 onLaunch(() => {
   console.log("App Launch");
+  preloadCities().catch(() => {});
 });
 onShow(() => {
   console.log("App Show");

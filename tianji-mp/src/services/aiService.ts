@@ -169,18 +169,27 @@ const extractEffectiveHistory = (history: ChatMessage[]) => {
 };
 
 const parseReplySuggestions = (text: string) => {
-    const parts = text.split('---SUG.');
-    const reply = (parts[0] || '').trim();
-    let suggestions: string[] = [];
-    if (parts.length > 1) {
-        suggestions = parts[1]
-            .split(/\r?\n/)
-            .map((line) => line.replace(/^\s*[-*]?\s*\d*[\.\)]?\s*/, '').trim())
-            .filter((line) => !!line)
-            .slice(0, 4);
+    const normalized = (text || '').replace(/\r/g, '');
+    const markerRegex = /(^|\n)\s*(?:---\s*)?SUG[.:：]\s*(?=\n|$)/i;
+    const match = markerRegex.exec(normalized);
+    if (!match) {
+        return { reply: normalized.trim(), suggestions: [] };
     }
+
+    let reply = normalized.slice(0, match.index).trim();
+    reply = reply.replace(/(?:\n\s*---\s*)+$/g, '').trim();
+
+    const tail = normalized.slice(match.index + match[0].length).trim();
+    const suggestions = tail
+        .split(/\n+/)
+        .map((line) => line.replace(/^\s*[-*•]?\s*\d*[\.\)]?\s*/, '').trim())
+        .filter((line) => !!line)
+        .slice(0, 4);
+
     return { reply, suggestions };
 };
+
+export const splitChatReply = (text: string) => parseReplySuggestions(text);
 
 const decodeUtf8 = (input: ArrayBuffer | Uint8Array): string => {
     const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);

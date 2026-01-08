@@ -161,12 +161,21 @@
             </view>
             <view class="form-item">
                 <text class="label">出生城市 (搜不到请手动输入经度)</text>
-                <input class="input" v-model="cityQuery" @input="onCityInput" placeholder="输入城市名搜索" />
+                <view class="city-input-wrap">
+                    <input
+                        class="input city-input"
+                        v-model="cityQuery"
+                        @input="onCityInput"
+                        @focus="onCityFocus"
+                        placeholder="输入城市名搜索"
+                    />
+                    <view v-if="isSearchingCity" class="city-loading"></view>
+                </view>
                 <!-- City Suggestions -->
-                <scroll-view scroll-y v-if="cityResults.length > 0" class="city-suggestions">
+                <scroll-view scroll-y v-if="showCityDropdown && cityResults.length > 0" class="city-suggestions">
                     <view v-for="(city, idx) in cityResults" :key="idx" class="city-item" @click="selectCity(city)">
                         <text class="city-name">{{ city.name }}</text>
-                        <text class="city-sub">{{ city.subcountry }}</text>
+                        <text class="city-sub">{{ city.subcountry }}, {{ city.country }}</text>
                     </view>
                 </scroll-view>
             </view>
@@ -244,6 +253,9 @@ const newProfile = ref<Partial<UserProfile>>({
 
 const cityQuery = ref('');
 const cityResults = ref<City[]>([]);
+const isSearchingCity = ref(false);
+const showCityDropdown = ref(false);
+let isSelectingCity = false;
 let searchTimer: any = null;
 
 // Derived
@@ -285,6 +297,9 @@ const openCreateModal = () => {
     };
     cityQuery.value = '';
     cityResults.value = [];
+    isSearchingCity.value = false;
+    showCityDropdown.value = false;
+    isSelectingCity = false;
     showCreateForm.value = true;
     showSidebar.value = false;
 };
@@ -313,22 +328,39 @@ const onCityInput = (e: any) => {
     const val = e.detail.value;
     cityQuery.value = val;
     if (searchTimer) clearTimeout(searchTimer);
-    if (!val || val.length < 2) {
-        cityResults.value = [];
+    if (isSelectingCity) {
+        isSelectingCity = false;
         return;
     }
-    
+    if (!val || val.length < 2) {
+        cityResults.value = [];
+        showCityDropdown.value = false;
+        isSearchingCity.value = false;
+        return;
+    }
+    isSearchingCity.value = true;
     searchTimer = setTimeout(async () => {
         const res = await searchCities(val);
         cityResults.value = res;
-    }, 500);
+        isSearchingCity.value = false;
+        showCityDropdown.value = res.length > 0;
+    }, 300);
 };
 
 const selectCity = (city: City) => {
     newProfile.value.longitude = city.longitude;
     cityQuery.value = `${city.name}, ${city.country}`;
     cityResults.value = [];
+    showCityDropdown.value = false;
+    isSelectingCity = true;
 };
+
+const onCityFocus = () => {
+    if (cityResults.value.length > 0) {
+        showCityDropdown.value = true;
+    }
+};
+
 
 const createProfile = () => {
     if (!newProfile.value.name) {
@@ -482,6 +514,15 @@ const createProfile = () => {
 .radio-btn.checked { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; font-weight: bold; }
 .radio-btn.female.checked { background: #fdf2f8; color: #db2777; border-color: #fbcfe8; }
 
+.city-input-wrap { position: relative; }
+.city-input { padding-right: 56rpx; }
+.city-loading {
+    position: absolute; right: 16rpx; top: 50%;
+    width: 24rpx; height: 24rpx; margin-top: -12rpx;
+    border: 3rpx solid #e2e8f0; border-top-color: #7c3aed; border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
 .city-suggestions {
     position: absolute; top: 100%; left: 0; right: 0;
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12rpx;
@@ -494,5 +535,10 @@ const createProfile = () => {
 .modal-actions { display: flex; gap: 16rpx; margin-top: 32rpx; }
 .btn-cancel { flex: 1; background: #f1f5f9; color: #64748b; font-size: 28rpx; }
 .btn-confirm { flex: 1; background: #7c3aed; color: #fff; font-size: 28rpx; }
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 
 </style>
