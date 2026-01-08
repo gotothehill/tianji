@@ -234,6 +234,7 @@ const labels = {
 
 const loading = ref(false);
 const errorMsg = ref('');
+const activeTaskKey = ref<string | null>(null);
 const allProfiles = ref<UserProfile[]>([]);
 const profileAId = ref(props.profileId || '');
 const profileBId = ref('');
@@ -442,8 +443,39 @@ const loadCachedReport = () => {
   reportContent.value = cached || '';
 };
 
+const attachPendingTask = () => {
+  if (!profileAId.value || !profileBId.value) return;
+  const currentA = profileAId.value;
+  const currentB = profileBId.value;
+  const task = AI.getSynastryTask(currentA, currentB);
+  if (!task) return;
+  const taskKey = `${currentA}__${currentB}`;
+  if (activeTaskKey.value === taskKey) return;
+  activeTaskKey.value = taskKey;
+  loading.value = true;
+  errorMsg.value = '';
+  task.promise
+    .then((content) => {
+      Storage.saveSynastryReport(currentA, currentB, content);
+      if (profileAId.value === currentA && profileBId.value === currentB) {
+        reportContent.value = content;
+      }
+    })
+    .catch((e: any) => {
+      const msg = e?.message || e?.errMsg || labels.emptyValue;
+      errorMsg.value = `${labels.aiGenerate}: ${msg}`;
+    })
+    .finally(() => {
+      if (activeTaskKey.value === taskKey) {
+        loading.value = false;
+        activeTaskKey.value = null;
+      }
+    });
+};
+
 watch(() => [profileAId.value, profileBId.value], () => {
   loadCachedReport();
+  attachPendingTask();
   errorMsg.value = '';
 }, { immediate: true });
 
@@ -459,12 +491,16 @@ const generateSynastry = async (force: boolean) => {
     }
   }
 
+  const currentA = profileAId.value;
+  const currentB = profileBId.value;
   loading.value = true;
   errorMsg.value = '';
   try {
-    const content = await AI.generateSynastryReport(chartA.value, chartB.value, 'couple');
-    reportContent.value = content;
-    Storage.saveSynastryReport(profileAId.value, profileBId.value, content);
+    const content = await AI.ensureSynastryTask(currentA, currentB, chartA.value, chartB.value, 'couple');
+    Storage.saveSynastryReport(currentA, currentB, content);
+    if (profileAId.value === currentA && profileBId.value === currentB) {
+      reportContent.value = content;
+    }
   } catch (e: any) {
     const msg = e?.message || e?.errMsg || labels.emptyValue;
     errorMsg.value = `${labels.aiGenerate}: ${msg}`;

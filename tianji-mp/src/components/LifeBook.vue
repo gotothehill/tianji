@@ -156,7 +156,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import type { BaziChart } from '@/models';
-import { generateFullReport } from '@/services/aiService';
+import { ensureLifeBookTask, getLifeBookTask } from '@/services/aiService';
 import { getLifeBookReport, saveLifeBookReport } from '@/services/storageService';
 
 const props = defineProps<{
@@ -273,6 +273,7 @@ const loading = ref(false);
 const reportContent = ref('');
 const reportTimestamp = ref(0);
 const errorMsg = ref('');
+const activeTaskProfile = ref<string | null>(null);
 const hasApiKey = computed(() => !!import.meta.env.VITE_OPENAI_API_KEY);
 
 
@@ -411,21 +412,54 @@ const loadReport = () => {
   }
 };
 
+const attachPendingTask = () => {
+  if (!props.profileId) return;
+  const currentId = props.profileId;
+  const task = getLifeBookTask(currentId);
+  if (!task) return;
+  if (activeTaskProfile.value === currentId) return;
+  activeTaskProfile.value = currentId;
+  loading.value = true;
+  errorMsg.value = '';
+  task.promise
+    .then((content) => {
+      saveLifeBookReport(currentId, content);
+      if (props.profileId === currentId) {
+        reportContent.value = content;
+        reportTimestamp.value = Date.now();
+      }
+    })
+    .catch((e: any) => {
+      const detail = e?.message || e?.errMsg || (typeof e === 'string' ? e : '请求失败');
+      errorMsg.value = `${labels.aiGenerateBtn}: ${detail}`;
+    })
+    .finally(() => {
+      if (activeTaskProfile.value === currentId) {
+        loading.value = false;
+        activeTaskProfile.value = null;
+      }
+    });
+};
+
 watch(() => props.profileId, () => {
   loadReport();
+  attachPendingTask();
 }, { immediate: true });
 
 const generateReport = async () => {
   if (!props.chart || !props.profileId || loading.value) return;
   if (!hasApiKey.value) return;
 
+  const currentId = props.profileId;
   loading.value = true;
   errorMsg.value = '';
   try {
-    const content = await generateFullReport(props.chart);
-    reportContent.value = content;
-    reportTimestamp.value = Date.now();
-    saveLifeBookReport(props.profileId, content);
+    const content = await ensureLifeBookTask(currentId, props.chart);
+    saveLifeBookReport(currentId, content);
+    if (props.profileId === currentId) {
+      reportContent.value = content;
+      reportTimestamp.value = Date.now();
+    }
   } catch (e: any) {
     console.error('[LifeBook] generate report failed', e);
     const detail = e?.message || e?.errMsg || (typeof e === 'string' ? e : '\u8bf7\u6c42\u5931\u8d25');

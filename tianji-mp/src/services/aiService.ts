@@ -31,6 +31,16 @@ export interface ChatSession {
     lastUpdated: number;
 }
 
+type ReportTask = {
+    promise: Promise<string>;
+    startedAt: number;
+};
+
+const LIFEBOOK_TASKS = new Map<string, ReportTask>();
+const SYN_TASKS = new Map<string, ReportTask>();
+
+const makeSynastryKey = (profileAId: string, profileBId: string) => `${profileAId}__${profileBId}`;
+
 // --- Utils ---
 
 const callOpenAI = async (
@@ -594,6 +604,47 @@ export const generateSynastryReport = async (
         { role: 'system', content: 'You are "Master TianJi", expert in Bazi synastry.' },
         { role: 'user', content: prompt }
     ], 0.8);
+};
+
+export const getLifeBookTask = (profileId: string | null) => {
+    if (!profileId) return null;
+    return LIFEBOOK_TASKS.get(profileId) || null;
+};
+
+export const ensureLifeBookTask = (profileId: string, chart: BaziChart): Promise<string> => {
+    const existing = LIFEBOOK_TASKS.get(profileId);
+    if (existing) return existing.promise;
+    const promise = generateFullReport(chart)
+        .then((content) => content)
+        .finally(() => {
+            LIFEBOOK_TASKS.delete(profileId);
+        });
+    LIFEBOOK_TASKS.set(profileId, { promise, startedAt: Date.now() });
+    return promise;
+};
+
+export const getSynastryTask = (profileAId: string | null, profileBId: string | null) => {
+    if (!profileAId || !profileBId) return null;
+    return SYN_TASKS.get(makeSynastryKey(profileAId, profileBId)) || null;
+};
+
+export const ensureSynastryTask = (
+    profileAId: string,
+    profileBId: string,
+    chartA: BaziChart,
+    chartB: BaziChart,
+    relationType: string = 'couple'
+): Promise<string> => {
+    const key = makeSynastryKey(profileAId, profileBId);
+    const existing = SYN_TASKS.get(key);
+    if (existing) return existing.promise;
+    const promise = generateSynastryReport(chartA, chartB, relationType)
+        .then((content) => content)
+        .finally(() => {
+            SYN_TASKS.delete(key);
+        });
+    SYN_TASKS.set(key, { promise, startedAt: Date.now() });
+    return promise;
 };
 
 
